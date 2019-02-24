@@ -1,34 +1,79 @@
-from typing import Dict, List, Sequence
+from typing import Dict, List, Sequence, Union
 import lnetatmo
-from shyft.api import StringVector, UtcPeriod, TimeAxis, TimeSeries, POINT_INSTANT_VALUE, TsVector, TsInfoVector, TsInfo
+from shyft.api import (StringVector, UtcPeriod, TimeAxis, TimeSeries, POINT_INSTANT_VALUE, TsVector, TsInfoVector,
+                       TsInfo, time, utctime_now, Calendar)
 from shyft.repository.interfaces import TsRepository
+from utilities.rate_limiter import RateLimiter
+import logging
 
 
 def netatmo_read_url(station_name: str, module_name: str, data_type: str) -> str:
     return f'{NetatmoTsRepository.schema}://{station_name}/{module_name}/{data_type}'
 
 
-StationMetadata = Dict[str, object]
+StationMetadataType = Dict[str, object]
+TimeType = Union[float, int, time]
+
+
+def get_netatmp_api_limits() -> Dict[str, Dict[str, int]]:
+    return {
+        # name of limit: {max calls within span, timespan in sec, seconds wait when limit is met.
+        '10 seconds': {'action_limit': 50, 'timespan': 10, 'wait_time': 1},  # Maximum amount of netatmo api calls 50 pr 10 seconds.
+        '1 hour': {'action_limit': 500, 'timespan': 3600, 'wait_time': 60},  # Maximum amount of netatmo api calls 500 pr hour.
+    }
 
 
 class NetatmoTsRepository(TsRepository):
     schema = 'netatmo'
 
-    def __init__(self, username: str, password: str, client_id: str, client_secret: str) -> None:
-        self.auth = lnetatmo.ClientAuth(clientId=client_id, clientSecret=client_secret, username=username, password=password,
-                                        scope='read_station')
+    def __init__(self, username: str,
+                 password: str,
+                 client_id: str,
+                 client_secret: str,
+                 api_limits: Dict[str, Dict[str, int]] = None, direct_login: bool = True) -> None:
 
-        self.station_data = lnetatmo.WeatherStationData(self.auth)
+        api_limits = api_limits or get_netatmp_api_limits()
 
-        self.stations: List[StationMetadata] = list(self.station_data.stations.values())
-        self.stations_by_id: Dict[str, StationMetadata] = self.station_data.stations
-        self.stations_by_name: Dict[str, StationMetadata] = {station['station_name']: station for station in self.stations}
+        # We don't want to breach the Netatmo API rate limiting policy, so we apply rate limiters to the functions
+        # performing API calls to the Netatmo servers:
+        self.rate_limiters = [RateLimiter(**api_limit) for api_limit in api_limits.values()]
+        for limiter in self.rate_limiters:
+            self._get_measurements_from_station = limiter.rate_limit_decorator(self._get_measurements_from_station)
 
-    def get_measurements_from_station(self,
-                               station_name: str,
-                               measurement_type: str,
-                               utc_period: UtcPeriod = None
-                               ) -> TsVector:
+        self.auth = None
+        self.station_data: lnetatmo.WeatherStationData = None
+        self.stations: List[StationMetadataType] = None
+        self.stations_by_id: Dict[str, StationMetadataType] = None
+        self.stations_by_name: Dict[str, StationMetadataType] = None
+
+        if direct_login:  # Sometimes we want to use methods that don't need login.
+            self.auth = lnetatmo.ClientAuth(clientId=client_id, clientSecret=client_secret, username=username,
+                                            password=password,
+                                            scope='read_station')
+            self.station_data = lnetatmo.WeatherStationData(self.auth)
+
+            self.stations: List[StationMetadataType] = list(self.station_data.stations.values())
+            self.stations_by_id: Dict[str, StationMetadataType] = self.station_data.stations
+            self.stations_by_name: Dict[str, StationMetadataType] = {station['station_name']: station for station in
+                                                                     self.stations}
+
+        self.utc = Calendar()
+
+    def wait_for_rate_limiters(self) -> None:
+        """Check with the rate limiters, and wait if needed."""
+        for limiter in self.rate_limiters:
+            limiter.check_next_and_wait()
+
+    def add_action_timestamp_to_rate_limiters(self, timestamp: TimeType) -> None:
+        """Add a current action to rate limiters, so they keep track of actions."""
+        for limiter in self.rate_limiters:
+            limiter.add_action_timestamp(timestamp)
+
+    def _get_measurements_from_station(self, *,
+                                       station_name: str,
+                                       measurement_types: List[str],
+                                       utc_period: UtcPeriod = None
+                                       ) -> TsVector:
         """Get data for a specific station and set of measurements. utc_period is the timespan for which we ask for
         data, but it is optional, as utc_period=None asks for the longest possible timespan of data.
 
@@ -36,7 +81,7 @@ class NetatmoTsRepository(TsRepository):
 
         Args:
             station_name: The name of the station.
-            measurement_type: Comma seperated string of measurement names:
+            measurement_types: List of measurement types:
                 Temperature (°C)
                 CO2 (ppm)
                 Humidity (%)
@@ -56,9 +101,14 @@ class NetatmoTsRepository(TsRepository):
 
         date_start = utc_period.start if utc_period else None
         date_end = utc_period.end if utc_period else None
+
+        measurement_types_str = ','.join(measurement_types)
+
+        self.wait_for_rate_limiters()
+        self.add_action_timestamp_to_rate_limiters(utctime_now())
         data = self.station_data.getMeasure(device_id=self.stations_by_name[station_name]['_id'],
                                             scale='max',
-                                            mtype=measurement_type,
+                                            mtype=measurement_types_str,
                                             date_begin=date_start,
                                             date_end=date_end)
 
@@ -66,7 +116,8 @@ class NetatmoTsRepository(TsRepository):
         dt_list = [t2 - t1 for t1, t2 in zip(time[0:-2], time[1:-1])]
         dt_mode = max(set(dt_list), key=dt_list.count)
 
-        ta = TimeAxis(time + [dt_mode])  # Add another value at end of timeseries using the most common dt found.
+        ta = TimeAxis(
+            time + [time[-1] + dt_mode])  # Add another value at end of timeseries using the most common dt found.
 
         values_pr_time = [value for value in data['body'].values()]
         values = list(map(list, zip(*values_pr_time)))
@@ -74,6 +125,56 @@ class NetatmoTsRepository(TsRepository):
         tsvec = TsVector([TimeSeries(ta, vector, POINT_INSTANT_VALUE) for vector in values])
 
         return tsvec
+
+    def get_measurements_from_station(self, *,
+                                      station_name: str,
+                                      measurement_types: List[str],
+                                      utc_period: UtcPeriod
+                                      ) -> TsVector:
+        """Get data for a specific station and set of measurements. utc_period defines the data period.
+        Netatmo only returns data in 1024 point chunks. So this method performs multiple calls to retrieve all queried
+        data.
+
+        Args:
+            station_name: The name of the station.
+            measurement_types: Comma seperated string of measurement names:
+                Temperature (°C)
+                CO2 (ppm)
+                Humidity (%)
+                Pressure (mbar)
+                Noise (db)
+                Rain (mm)
+                WindStrength (km/h)
+                WindAngle (angles)
+                Guststrength (km/h)
+                GustAngle (angles)
+            utc_period: Inclusive start/end. The period we want data for (if none, the longest possible period
+                        (up to 1024 values).
+
+        Returns:
+            A Tsvector with timeseries containing data for each measurement type, in the order of the input.
+        """
+
+        result_end = utc_period.start
+        output = [None for measurement in measurement_types]
+        while result_end < utc_period.end:
+            utc_period = UtcPeriod(result_end, utc_period.end)  # Define a UtcPeriod for the remaining data.
+
+            result = self._get_measurements_from_station(station_name=station_name, measurement_types=measurement_types,
+                                                         utc_period=utc_period)
+
+            for ind, res in enumerate(result):
+                if not output[ind]:
+                    output[ind] = res
+                else:
+                    output[ind] = output[ind].extend(res)
+
+            result_end = result[0].time_axis.time_points_double[-1]  # Set the start of the new calls UtcPeriod.
+            logging.info(f'Got {len(result[0])} datapoints from '
+                         f'{self.utc.to_string(result[0].time_axis.time_points_double[0])} to '
+                         f'{self.utc.to_string(result_end)}')
+
+        return TsVector(output)
 
     def read(self, list_of_ts_id: Sequence[str], period: UtcPeriod) -> TsVector:
         """Take a sequence of strings identifying specific timeseries and get data from these series according to
@@ -124,7 +225,6 @@ class NetatmoTsRepository(TsRepository):
                 If the named time-series does not exist, create it.
         """
         raise NotImplementedError("read_forecast")
-
 
 # !/usr/bin/python
 # coding=utf-8
