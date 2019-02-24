@@ -13,12 +13,12 @@ logging.basicConfig(
     ])
 
 # Get credentials:
-if not 'WEATHER_AUTH' in os.environ:
+if not 'CONFIG_DIRECTORY' in os.environ:
     raise EnvironmentError('Cannot find path to app authentication codes.')
 
-sys.path.append(os.environ['WEATHER_AUTH'])
+sys.path.append(os.environ['CONFIG_DIRECTORY'])
 
-from authentication import login
+from netatmo_authentication import login
 
 
 def convert_seconds_to_now(seconds: List[int]) -> List[time]:

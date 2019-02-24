@@ -15,11 +15,11 @@ StationMetadataType = Dict[str, object]
 TimeType = Union[float, int, time]
 
 
-def get_netatmp_api_limits() -> Dict[str, Dict[str, int]]:
+def get_netatmo_api_limits() -> Dict[str, Dict[str, int]]:
     return {
         # name of limit: {max calls within span, timespan in sec, seconds wait when limit is met.
-        '10 seconds': {'action_limit': 50, 'timespan': 10, 'wait_time': 1},  # Maximum amount of netatmo api calls 50 pr 10 seconds.
-        '1 hour': {'action_limit': 500, 'timespan': 3600, 'wait_time': 60},  # Maximum amount of netatmo api calls 500 pr hour.
+        '10 seconds': {'action_limit': 50, 'timespan': 10, 'wait_time': 1},  # Max netatmo api calls 50 pr 10 seconds.
+        '1 hour': {'action_limit': 500, 'timespan': 3600, 'wait_time': 60},  # Max netatmo api calls 500 pr hour.
     }
 
 
@@ -32,7 +32,7 @@ class NetatmoTsRepository(TsRepository):
                  client_secret: str,
                  api_limits: Dict[str, Dict[str, int]] = None, direct_login: bool = True) -> None:
 
-        api_limits = api_limits or get_netatmp_api_limits()
+        api_limits = api_limits or get_netatmo_api_limits()
 
         # We don't want to breach the Netatmo API rate limiting policy, so we apply rate limiters to the functions
         # performing API calls to the Netatmo servers:
