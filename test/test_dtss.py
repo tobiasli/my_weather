@@ -2,6 +2,7 @@ from contextlib import closing
 import socket
 import os
 import sys
+import pytest
 from service.dtss import DtssHost
 
 # Get credentials:
@@ -10,11 +11,11 @@ if not 'CONFIG_DIRECTORY' in os.environ:
 
 sys.path.append(os.environ['CONFIG_DIRECTORY'])
 
-from dtss_config import configs
+from dtss_config import test_configs
 
-if socket.gethostname() not in configs:
+if socket.gethostname() not in test_configs:
     raise Exception(f"Can't find configuration for machine {socket.gethostname()}")
-DTSS_CONFIG = configs[socket.gethostname()]
+DTSS_TEST_CONFIG = test_configs[socket.gethostname()]
 
 
 def find_free_port() -> int:
@@ -29,6 +30,19 @@ def find_free_port() -> int:
 
 
 def test_dtss_construction():
-    dtss = DtssHost(**DTSS_CONFIG)
+    dtss = DtssHost(**DTSS_TEST_CONFIG, dtss_port_num=find_free_port())
 
-    # TODO: Fix TsRepository initialization.
+
+def test_dtss_start_service():
+    dtss = DtssHost(**DTSS_TEST_CONFIG, dtss_port_num=find_free_port())
+
+    dtss.start()
+    dtss.stop()
+
+
+@pytest.fixture(scope="session")
+def dtss() -> DtssHost:
+    return DtssHost(**DTSS_TEST_CONFIG)
+
+def test_dtss_find_callback_success(dtss):
+    dtss.find('')
