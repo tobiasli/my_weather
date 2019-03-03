@@ -3,10 +3,10 @@ me poll timeseries data either directly from the source (Netatmo API) or from th
 the Dtss. This lets gives me local storage of the data that can be queried freely."""
 
 from typing import List, Dict, Any, Sequence, Type
-from shyft.api import DtsServer, StringVector, TsVector, UtcPeriod
+from shyft.api import DtsServer, StringVector, TsVector, UtcPeriod, TsInfoVector
 from weather.data_collection.netatmo import NetatmoRepository
 from weather.interfaces.data_collection_repository import DataCollectionRepository
-from weather.test.utilities import MockRepository
+from weather.test.utilities import MockRepository1, MockRepository2
 import logging
 import socket
 import urllib
@@ -14,7 +14,7 @@ import urllib
 ConfigType = Dict[str, object]
 
 
-_DEFAULT_DATA_COLLECTION_REPO_TYPES = (NetatmoRepository, MockRepository)
+_DEFAULT_DATA_COLLECTION_REPO_TYPES = (NetatmoRepository, MockRepository1, MockRepository2)
 _DEFAULT_DATA_COLLECTION_REPO_TYPE_LOOKUP = {repo.name: repo for repo in _DEFAULT_DATA_COLLECTION_REPO_TYPES}
 
 
@@ -49,11 +49,13 @@ class DtssHost:
         """
         self.dtss_port_num = dtss_port_num
 
-        self.repos: List[DataCollectionRepository] = [_DEFAULT_DATA_COLLECTION_REPO_TYPE_LOOKUP[name](**config)
-                                                      for name, config in data_collection_repositories
-                                                      if name in _DEFAULT_DATA_COLLECTION_REPO_TYPE_LOOKUP]
-        self.read_callbacks = {repo.name: repo.read_callback for repo in self.repos}
-        self.find_callbacks = {repo.name: repo.find_callback for repo in self.repos}
+        # Build a dictionary containing every available repository.
+        self.repos: Dict[str, DataCollectionRepository] = {
+            name: _DEFAULT_DATA_COLLECTION_REPO_TYPE_LOOKUP[name](**config)
+            for name, config in data_collection_repositories.items()
+            if name in _DEFAULT_DATA_COLLECTION_REPO_TYPE_LOOKUP
+            }
+
         self.container_directory = container_directory
 
         # Initialize and configure server:
@@ -94,22 +96,28 @@ class DtssHost:
         """Return the full service address of the DtsServer."""
         return f'{socket.gethostname()}:{self.dtss_port_num}'
 
-    def read_callback(self, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
-        """DtssHost.read_callback accepts a set of urls identifying timeseries that in turn are """
+    def read_callback(self, *, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
+        """DtssHost.read_callback accepts a set of urls identifying timeseries and a read period and returns bound
+        TimeSeries in a TsVector that contain data at least covering the read_period.
+
+        Args:
+            ts_ids: A sequence of strings identifying specific timeseries available from the underlying
+                    DataCollectionRepository's.
+            read_period: A period defined by a utc timestamp for the start and end of the analysis period.
+
+        Returns:
+            A TsVector containing the resulting timeseries containing data enough to cover the query period.
+        """
 
         data = dict()  # Group ts_ids by repo.name (scheme).
         for enum, ts_id in enumerate(ts_ids):
-            parsed = urllib.parse.urlparse(ts_id)
-            if parsed.scheme not in self.read_callbacks:
-                raise DtssHostError(f'ts_id scheme {parsed.scheme} does not match any '
-                                    f'that are available for the DtssHost: '
-                                    f'{", ".join(scheme for scheme in self.read_callbacks)}')
-            if not parsed.scheme in data:
-                data[parsed.scheme] = []
-            data[parsed.scheme].append(dict(enum=enum, ts_id=ts_id, ts=None))
+            repo_name = self.get_repo_name_from_url(ts_id)
+            if repo_name not in data:
+                data[repo_name] = []
+            data[repo_name].append(dict(enum=enum, ts_id=ts_id, ts=None))
 
         for repo_name in data:
-            tsvec = self.read_callbacks[repo_name](
+            tsvec = self.repos[repo_name].read_callback(
                 ts_ids=StringVector([ts['ts_id'] for ts in data[repo_name]]),
                 read_period=read_period)
             for index, ts in enumerate(tsvec):
@@ -122,5 +130,20 @@ class DtssHost:
         sort = sorted(transpose_data, key=lambda item: item['enum'])
 
         return TsVector([item['ts'] for item in sort])
+
+    def find_callback(self, *, query: str) -> TsInfoVector:
+        """DtssHost.find:callback accepts a query string and returns metadata for any timeseries found."""
+        repo_name = self.get_repo_name_from_url(query)
+        return self.repos[repo_name].find_callback(query=query)
+
+    def get_repo_name_from_url(self, url: str) -> str:
+        """Get the repo name (scheme) from a url, so that we can route it correctly."""
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in self.repos:
+            raise DtssHostError(f'ts_id scheme {parsed.scheme} does not match any '
+                                f'that are available for the DtssHost: '
+                                f'{", ".join(scheme for scheme in self.repos)}')
+        return parsed.scheme
+
 
 

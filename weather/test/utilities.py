@@ -1,4 +1,6 @@
 """weather.test.utilities are different functions and classes that are needed for tests."""
+from abc import ABC
+
 from weather.interfaces.data_collection_repository import DataCollectionRepository
 from shyft.api import (StringVector, UtcPeriod, TsVector, TsInfoVector, TimeSeries, TimeAxisByPoints, UtcTimeVector,
                        point_interpretation_policy, TsInfo, utctime_now, TimeAxis, time)
@@ -25,22 +27,22 @@ class MockRepositoryError(Exception):
     pass
 
 
-class MockRepository(DataCollectionRepository):
+class MockRepository1(DataCollectionRepository):
     """Test repository that provides arbitrary data for tests."""
 
-    name = 'mock'
+    name = 'mock1'
 
-    def __init__(self, repo_name_override: str = 'mock') -> None:
-        """A mock repository that returns arbitrary timeseries and has a name property. Overwrite name property with
-        the one defined as arg."""
+    def __repr__(self) -> str:
+        return str(self)
 
-        self.name = repo_name_override
+    def __str__(self) -> str:
+        return f'{self.__class__.__name__}(name="{self.name}")'
 
     @classmethod
-    def create_ts_id(cls, ts_name: str) -> str:
+    def create_ts_id(cls, ts_name: str, value: Number) -> str:
         """Create a valid ts_id url string that is identifiable for the read_callback of the
         DataCollectionRepository."""
-        return f'{cls.name}://{ts_name}'
+        return f'{cls.name}://{ts_name}/{value}'
 
     @classmethod
     def parse_ts_id(cls, *, ts_id: str) -> Dict[str, str]:
@@ -50,13 +52,13 @@ class MockRepository(DataCollectionRepository):
             raise MockRepositoryError(f'ts_id scheme does not match repository name: '
                                          f'ts_id={parse.scheme}, {cls.__name__}={cls.name}')
 
-        return {'station_name': parse.netloc}
+        return {'station_name': parse.netloc, 'value': parse.path.split('/')[1]}
 
     @classmethod
-    def create_ts_query(cls, *, ts_name: str) -> str:
+    def create_ts_query(cls, *, ts_name: str, value: Number) -> str:
         """Create a valid query url string that is identifiable for the find_callback of the
         DataCollectionRepository."""
-        return cls.create_ts_id(ts_name=ts_name)
+        return cls.create_ts_id(ts_name=ts_name, value=value)
 
     @classmethod
     def parse_ts_query(cls, *, query: str) -> Dict[str, str]:
@@ -76,7 +78,8 @@ class MockRepository(DataCollectionRepository):
         """
         tsv = TsVector()
         for value, ts_id in enumerate(ts_ids):
-            tsv.append(create_ts(value, read_period=read_period))
+            ts_info = self.parse_ts_id(ts_id=ts_id)
+            tsv.append(create_ts(read_period=read_period, value=float(ts_info['value'])))
 
         return tsv
 
@@ -101,7 +104,9 @@ class MockRepository(DataCollectionRepository):
             modified=utctime_now()
             )
 
-        return TsInfoVector([tsi])
+        tsiv = TsInfoVector()
+        tsiv.append(tsi)
+        return tsiv
 
     def read(self, list_of_ts_id: Sequence[str], period: UtcPeriod) -> Dict[str, TimeSeries]:
         """Take a sequence of strings identifying specific timeseries and get data from these series according to
@@ -138,6 +143,11 @@ class MockRepository(DataCollectionRepository):
                 If the named time-series does not exist, create it.
         """
         raise NotImplementedError("read_forecast")
+
+
+class MockRepository2(MockRepository1):
+    """Mock repository that returns timeseries on request."""
+    name = 'mock2'
 
 
 

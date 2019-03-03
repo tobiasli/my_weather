@@ -36,7 +36,6 @@ def test_dtss_construction():
 
 def test_dtss_start_service():
     dtss = DtssHost(**DTSS_TEST_CONFIG, dtss_port_num=find_free_port())
-
     dtss.start()
     dtss.stop()
 
@@ -48,6 +47,16 @@ def dtss() -> DtssHost:
 
 def test_read_callback_success(dtss):
     cal = Calendar()
-    result = dtss.read_callback(ts_ids=StringVector(['mock://something', 'mock://something_else', 'mock2://something_strange']),
+    ts_ids = ['mock1://something/1', 'mock2://something_else/2', 'mock1://something_strange/3']
+    expected = [1, 2, 3]
+    result = dtss.read_callback(ts_ids=StringVector(ts_ids),
                                 read_period=UtcPeriod(cal.time(0), cal.time(5)))
     assert isinstance(result, TsVector)
+    for ts, value in zip(result, expected):
+        assert ts.values.to_numpy()[0] == value
+
+
+def test_find_callback_success(dtss):
+    query = 'mock1://something/1'
+    tsiv = dtss.find_callback(query=query)
+    assert tsiv[0].name == query
