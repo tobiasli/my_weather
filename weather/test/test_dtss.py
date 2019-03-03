@@ -3,7 +3,8 @@ import socket
 import os
 import sys
 import pytest
-from service.dtss import DtssHost
+from shyft.api import Calendar, UtcPeriod, StringVector, TsVector
+from weather.service.dtss import DtssHost
 
 # Get credentials:
 if not 'CONFIG_DIRECTORY' in os.environ:
@@ -42,7 +43,11 @@ def test_dtss_start_service():
 
 @pytest.fixture(scope="session")
 def dtss() -> DtssHost:
-    return DtssHost(**DTSS_TEST_CONFIG)
+    return DtssHost(**DTSS_TEST_CONFIG, dtss_port_num=find_free_port())
 
-def test_dtss_find_callback_success(dtss):
-    dtss.find('')
+
+def test_read_callback_success(dtss):
+    cal = Calendar()
+    result = dtss.read_callback(ts_ids=StringVector(['mock://something', 'mock://something_else', 'mock2://something_strange']),
+                                read_period=UtcPeriod(cal.time(0), cal.time(5)))
+    assert isinstance(result, TsVector)

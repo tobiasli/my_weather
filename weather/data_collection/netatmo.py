@@ -2,29 +2,24 @@ from typing import Dict, List, Sequence, Union
 import lnetatmo
 from shyft.api import (StringVector, UtcPeriod, TimeAxis, TimeSeries, POINT_INSTANT_VALUE, TsVector, TsInfoVector,
                        TsInfo, time, utctime_now, Calendar)
-from shyft.repository.interfaces import TsRepository
-from utilities.rate_limiter import RateLimiter
+from weather.interfaces.data_collection_repository import DataCollectionRepository
+from weather.utilities.rate_limiter import RateLimiter
 import logging
-
-
-def netatmo_read_url(station_name: str, module_name: str, data_type: str) -> str:
-    return f'{NetatmoTsRepository.schema}://{station_name}/{module_name}/{data_type}'
+import urllib
 
 
 StationMetadataType = Dict[str, object]
 TimeType = Union[float, int, time]
 
 
-def get_netatmo_api_limits() -> Dict[str, Dict[str, int]]:
-    return {
-        # name of limit: {max calls within span, timespan in sec, seconds wait when limit is met.
-        '10 seconds': {'action_limit': 50, 'timespan': 10, 'wait_time': 1},  # Max netatmo api calls 50 pr 10 seconds.
-        '1 hour': {'action_limit': 500, 'timespan': 3600, 'wait_time': 60},  # Max netatmo api calls 500 pr hour.
-    }
+class NetatmoRepositoryError(Exception):
+    """Exceptions raised by the NetatmoRepository."""
+    pass
 
 
-class NetatmoTsRepository(TsRepository):
-    schema = 'netatmo'
+class NetatmoRepository(DataCollectionRepository):
+    """The NetatmoRepository contains methods complying to the the DataCollectionRepository standard."""
+    name = 'netatmo'
 
     def __init__(self, username: str,
                  password: str,
@@ -32,7 +27,7 @@ class NetatmoTsRepository(TsRepository):
                  client_secret: str,
                  api_limits: Dict[str, Dict[str, int]] = None, direct_login: bool = True) -> None:
 
-        api_limits = api_limits or get_netatmo_api_limits()
+        api_limits = api_limits
 
         # We don't want to breach the Netatmo API rate limiting policy, so we apply rate limiters to the functions
         # performing API calls to the Netatmo servers:
@@ -58,6 +53,33 @@ class NetatmoTsRepository(TsRepository):
                                                                      self.stations}
 
         self.utc = Calendar()
+
+    @classmethod
+    def create_ts_id(cls, *, station_name: str, data_type: str) -> str:
+        """Create a valid ts url from a netatmo station_name, module_name and data_type to identify a timeseries."""
+        return f'{cls.name}://{station_name}/{data_type}'
+
+    @classmethod
+    def parse_ts_id(cls, *, ts_id: str) -> Dict[str, str]:
+        """Create a valid ts url from a netatmo station_name, module_name and data_type to identify a timeseries."""
+        parse = urllib.parse.urlparse(ts_id)
+        if parse.scheme != cls.name:
+            raise NetatmoRepositoryError(f'ts_id scheme does not match repository name: '
+                                         f'ts_id={parse.scheme}, {cls.__name__}={cls.name}')
+
+        return {'station_name': parse.netloc,
+                'data_type': parse.path.split('/')[1]}
+
+    @classmethod
+    def create_ts_query(cls, *, station_name: str, data_type: str) -> str:
+        """Create a valid query url from a netatmo station_name, module_name and data_type to identify a timeseries.
+        Uses the same format as NetatmoRepository.create_ts_id()."""
+        return cls.create_ts_id(station_name=station_name, data_type=data_type)
+
+    @classmethod
+    def parse_ts_query(cls, *, ts_query) -> Dict[str, str]:
+        """Create a valid ts url from a netatmo station_name, module_name and data_type to identify a timeseries."""
+        return cls.parse_ts_id(ts_id=ts_query)
 
     def wait_for_rate_limiters(self) -> None:
         """Check with the rate limiters, and wait if needed."""
@@ -176,9 +198,12 @@ class NetatmoTsRepository(TsRepository):
 
         return TsVector(output)
 
-    def read(self, list_of_ts_id: Sequence[str], period: UtcPeriod) -> TsVector:
+    def read(self, list_of_ts_id: Sequence[str], period: UtcPeriod) -> Dict[str, TimeSeries]:
         """Take a sequence of strings identifying specific timeseries and get data from these series according to
         the timespan defined in period.
+
+        Note: The reac_callback is a less specialized funciton than the TsRepository.read, so this method just calls
+        the read_callback.
 
         Args:
             list_of_ts_id: A sequence of strings identifying specific timeseries available from the netatmo login.
@@ -188,9 +213,10 @@ class NetatmoTsRepository(TsRepository):
             A TsVector containing the resulting timeseries containing data enough to cover the query period.
         """
 
-        abs(1)
+        return {ts_id: ts for ts_id , ts in zip(list_of_ts_id, self.read_callback(ts_ids=StringVector([list_of_ts_id]),
+                                                                                  read_period=period))}
 
-    def read_callback(self, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
+    def read_callback(self, *, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
         """This callback is passed as the default read_callback for a shyft.api.DtsServer.
 
         Args:
@@ -200,9 +226,37 @@ class NetatmoTsRepository(TsRepository):
         Returns:
             A TsVector containing the resulting timeseries containing data enough to cover the query period.
         """
+
+        data = dict()
+        for enum, ts_id in enumerate(ts_ids):
+            data[ts_id] = dict(enum=enum, ts_id=ts_id, ts=None)
+
+
+
         return self.read(ts_ids, read_period)
 
+    def find_callback(self, *, query: str) -> TsInfoVector:
+        """This callback is passed as the default find_callback for a shyft.api.DtsServer.
+
+        Args:
+            query: The url representing a relevant query for this DataCollectionRepository.
+
+        Returns:
+            A sequence of results matching the query.
+        """
+
+        return self.find(query)
+
     def find(self, query: str) -> TsInfoVector:
+        """Checl if data matching the query exists in the data source.
+
+        Args:
+            query: The url representing a relevant query for this DataCollectionRepository.
+
+        Returns:
+            A sequence of results matching the query.
+        """
+
         tsi = TsInfo(query)
         tsiv = TsInfoVector()
         tsiv.append(tsi)

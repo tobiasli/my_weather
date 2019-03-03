@@ -1,4 +1,4 @@
-from utilities.rate_limiter import RateLimiter, utctime_now
+from weather.utilities.rate_limiter import RateLimiter, utctime_now
 import logging
 logging.basicConfig(
     level=logging.INFO,
