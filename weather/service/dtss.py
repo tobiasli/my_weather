@@ -2,7 +2,7 @@
 me poll timeseries data either directly from the source (Netatmo API) or from the containers (local cache) available to
 the Dtss. This lets gives me local storage of the data that can be queried freely."""
 
-from typing import List, Dict, Any, Sequence, Type
+from typing import Dict, Any
 from shyft.api import DtsServer, StringVector, TsVector, UtcPeriod, TsInfoVector
 from weather.data_collection.netatmo import NetatmoRepository
 from weather.interfaces.data_collection_repository import DataCollectionRepository

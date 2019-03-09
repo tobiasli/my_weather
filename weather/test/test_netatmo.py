@@ -1,9 +1,13 @@
-from weather.data_collection.netatmo import NetatmoRepository, NetatmoRepositoryError
 from shyft.api import Calendar, UtcPeriod, StringVector
 import os
 import sys
 import pytest
 import logging
+
+from weather.data_collection.netatmo import NetatmoRepository
+from weather.data_collection.netatmo_domain import types, NetatmoDomain
+from weather.data_collection.netatmo_identifiers import create_ts_id, create_ts_query
+from weather.test.bin.netatmo_test_data import MOCK_STATION_CONFIG
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,6 +31,18 @@ def net():
     return NetatmoRepository(**login, **config)
 
 
+@pytest.fixture()
+def domain_mock():
+    """Create an instance of the Netatmo domain model."""
+    return NetatmoDomain(device_metadata=MOCK_STATION_CONFIG)
+
+
+@pytest.fixture()
+def domain():
+    """Create an instance of the Netatmo domain model."""
+    return NetatmoDomain(**login)
+
+
 @pytest.fixture
 def net_no_login_w_call_limits():
     """Return a netatmo instance without login to check handling of api rate limits."""
@@ -38,58 +54,42 @@ def net_no_login_w_call_limits():
 
 
 def test_construction(net):
-    assert net.stations
+    assert net.domain
 
 
-def test__get_measurements_from_station(net):
-    tsvec = net._get_measurements_from_station(station_name='Eftasåsen', measurement_types=['Temperature'])
+def test__get_measurements_block(net, domain):
+    measurement = domain.get_measurement(device_name='Stua', data_type='Temperature')
+    tsvec = net._get_measurements_block(device_id=measurement.device_id,
+                                        module_id=measurement.module_id,
+                                        measurements=[measurement.data_type.name])
 
     assert tsvec[0].values.to_numpy().all()
 
 
-def test_get_measurements_from_station(net):
+def test_get_measurements(net, domain):
     # This method uses a period longer than 1024 values, utilizing a rate limiter to not trip Netatmo api limits.
     cal = Calendar('Europe/Oslo')
     period = UtcPeriod(cal.time(2019, 2, 18), cal.time(2019, 2, 24))
-    tsvec = net.get_measurements_from_station(station_name='Eftasåsen', measurement_types=['Temperature'],
-                                              utc_period=period)
+    measurement = domain.get_measurement(device_name='Stua', data_type='Temperature')
+    tsvec = net.get_measurements(device_id=measurement.device_id,
+                                 module_id=measurement.module_id,
+                                 measurements=[measurement.data_type.name],
+                                 utc_period=period)
 
     assert tsvec[0].values.to_numpy().all()
 
 
-def test_create_ts_id():
-    expected = 'netatmo://Somewhere/Earthquake'
-    result = NetatmoRepository.create_ts_id(station_name='Somewhere', data_type='Earthquake')
-    assert result == expected
-
-
-def test_parse_ts_query():
-    kwargs = {'station_name': 'Somewhere',
-              'data_type': 'Earthquake'}
-    ts_id = NetatmoRepository.create_ts_id(**kwargs)
-    result = NetatmoRepository.parse_ts_id(ts_id=ts_id)
-    assert kwargs == result
-
-
-def test_parse_ts_query_wrong_repo():
-    """Should fail when scheme does not match repo name."""
-    ts_id = 'bogus://Somewhere/Earthquake'
-    try:
-        NetatmoRepository.parse_ts_id(ts_id=ts_id)
-        assert False
-    except NetatmoRepositoryError as e:
-        assert 'scheme does not match repository' in str(e)
-
-
-def test_create_ts_query():
-    expected = 'netatmo://Somewhere/Earthquake'
-    result = NetatmoRepository.create_ts_query(station_name='Somewhere', data_type='Earthquake')
-    assert result == expected
-
-
 def test_read_callback(net):
-    ts_id = net.create_ts_query(station_name='Somewhere', data_type='Earthquake')
-
-    tsvec = net.read_callback(ts_ids=StringVector([ts_id]), read_period=UtcPeriod(Calendar().time(2019, 2, 20), Calendar().time(2019, 2, 22)))
+    ts_id = create_ts_id(device_name='Stua', data_type=types.temperature)
+    cal = Calendar()
+    tsvec = net.read_callback(ts_ids=StringVector([ts_id]),
+                              read_period=UtcPeriod(cal.time(2019, 2, 20), cal.time(2019, 2, 22)))
 
     assert tsvec
+
+
+def test_find_callback(net):
+    ts_query = create_ts_query(device_name='Stua', data_type=types.humidity)
+    tsiv = net.find_callback(query=ts_query)
+
+    assert tsiv

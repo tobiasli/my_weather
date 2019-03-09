@@ -1,3 +1,5 @@
+"""Test data for netatmo_tests"""
+
 MOCK_STATION_CONFIG = {'station:mock:id:1': {'_id': 'bogus:station:id:1',
                                              'cipher_id': 'bogus:cipher:information',
                                              'date_setup': 1550321641,
