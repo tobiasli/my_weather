@@ -1,15 +1,66 @@
-from typing import Dict, List, Sequence, Union
+from typing import Dict, List, Sequence, Union, Iterable
 import lnetatmo
-from shyft.api import (StringVector, UtcPeriod, TimeAxis, TimeSeries, POINT_INSTANT_VALUE, TsVector, TsInfoVector,
+from shyft.api import (StringVector, UtcPeriod, TimeAxisByPoints, TimeSeries, POINT_INSTANT_VALUE, TsVector, TsInfoVector,
                        TsInfo, time, utctime_now, Calendar)
 from weather.interfaces.data_collection_repository import DataCollectionRepository
-from weather.utilities.rate_limiter import RateLimiter
+from weather.utilities import rate_limiter, camel_converter
 import logging
 import urllib
+import numpy as np
 
 
 StationMetadataType = Dict[str, object]
 TimeType = Union[float, int, time]
+Number = Union[float, int]
+NoneType = type(None)
+NanType = type(np.nan)
+
+
+class NetatmoMeasurement:
+    """Class for representing a Netatmo measurement."""
+    name: str
+    unit: str
+
+    def __init__(self, name: str, unit: str) -> None:
+        self.name = name
+        self.unit = unit
+        self.name_lower = camel_converter.convert(name)
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(name="{self.name}", unit="{self.unit}")'
+
+
+class NetatmoMeasurementTypes:
+    """Handle a set of NetatmoMeasurements"""
+
+    def __init__(self, measurement_types: Iterable[NetatmoMeasurement]) -> None:
+        self.dict = {meas.name_lower: meas for meas in measurement_types}
+        self.dir = sorted([meas.name_lower for meas in measurement_types])
+
+    def __getattr__(self, item: str) -> str:
+        return self.dict[item]
+
+    def __dir__(self) -> List[str]:
+        return self.dir + dir(super(type(self))) + ['dir', 'dict']
+
+
+_measurements = [
+    ('Temperature', '°C'),
+    ('CO2', 'ppm'),
+    ('Humidity', '%'),
+    ('Pressure', 'mbar'),
+    ('Noise', 'db'),
+    ('Rain', 'mm'),
+    ('WindStrength', 'km / h'),
+    ('WindAngle', 'angles'),
+    ('Guststrength', 'km / h'),
+    ('GustAngle', 'angles')
+]
+
+types = NetatmoMeasurementTypes([NetatmoMeasurement(*item) for item in _measurements])
 
 
 class NetatmoRepositoryError(Exception):
@@ -31,7 +82,7 @@ class NetatmoRepository(DataCollectionRepository):
 
         # We don't want to breach the Netatmo API rate limiting policy, so we apply rate limiters to the functions
         # performing API calls to the Netatmo servers:
-        self.rate_limiters = [RateLimiter(**api_limit) for api_limit in api_limits.values()]
+        self.rate_limiters = [rate_limiter.RateLimiter(**api_limit) for api_limit in api_limits.values()]
         for limiter in self.rate_limiters:
             self._get_measurements_from_station = limiter.rate_limit_decorator(self._get_measurements_from_station)
 
@@ -91,9 +142,14 @@ class NetatmoRepository(DataCollectionRepository):
         for limiter in self.rate_limiters:
             limiter.add_action_timestamp(timestamp)
 
+    @staticmethod
+    def set_none_to_nan(values: Sequence[Union[Number, NoneType]]) -> Sequence[Union[Number, NanType]]:
+        """Method that replaces None with np.nan in a sequence."""
+        return [np.nan if value is None else value for value in values]
+
     def _get_measurements_from_station(self, *,
                                        station_name: str,
-                                       measurement_types: List[str],
+                                       measurement_types: Iterable[Union[NetatmoMeasurement, str]],
                                        utc_period: UtcPeriod = None
                                        ) -> TsVector:
         """Get data for a specific station and set of measurements. utc_period is the timespan for which we ask for
@@ -124,7 +180,7 @@ class NetatmoRepository(DataCollectionRepository):
         date_start = utc_period.start if utc_period else None
         date_end = utc_period.end if utc_period else None
 
-        measurement_types_str = ','.join(measurement_types)
+        measurement_types_str = ','.join([str(meas) for meas in measurement_types])
 
         self.wait_for_rate_limiters()
         self.add_action_timestamp_to_rate_limiters(utctime_now())
@@ -134,23 +190,26 @@ class NetatmoRepository(DataCollectionRepository):
                                             date_begin=date_start,
                                             date_end=date_end)
 
-        time = [float(timestamp) for timestamp in data['body'].keys()]
-        dt_list = [t2 - t1 for t1, t2 in zip(time[0:-2], time[1:-1])]
-        dt_mode = max(set(dt_list), key=dt_list.count)
+        if not data['body']:
+            tsvec = TsVector([TimeSeries() for meas in measurement_types])
+        else:
+            time = [float(timestamp) for timestamp in data['body'].keys()]
+            dt_list = [t2 - t1 for t1, t2 in zip(time[0:-2], time[1:-1])]
+            dt_mode = max(set(dt_list), key=dt_list.count)
+            ta = TimeAxisByPoints(time + [time[-1] + dt_mode])
 
-        ta = TimeAxis(
-            time + [time[-1] + dt_mode])  # Add another value at end of timeseries using the most common dt found.
+            values_pr_time = [value for value in data['body'].values()]
+            values = list(map(list, zip(*values_pr_time)))
 
-        values_pr_time = [value for value in data['body'].values()]
-        values = list(map(list, zip(*values_pr_time)))
+            # Remove nan:
 
-        tsvec = TsVector([TimeSeries(ta, vector, POINT_INSTANT_VALUE) for vector in values])
+            tsvec = TsVector([TimeSeries(ta, self.set_none_to_nan(vector), POINT_INSTANT_VALUE) for vector in values])
 
         return tsvec
 
     def get_measurements_from_station(self, *,
                                       station_name: str,
-                                      measurement_types: List[str],
+                                      measurement_types: Iterable[Union[NetatmoMeasurement, str]],
                                       utc_period: UtcPeriod
                                       ) -> TsVector:
         """Get data for a specific station and set of measurements. utc_period defines the data period.
@@ -178,18 +237,21 @@ class NetatmoRepository(DataCollectionRepository):
         """
 
         result_end = utc_period.start
-        output = [None for measurement in measurement_types]
+        output = [TimeSeries() for measurement in measurement_types]
         while result_end < utc_period.end:
             utc_period = UtcPeriod(result_end, utc_period.end)  # Define a UtcPeriod for the remaining data.
 
             result = self._get_measurements_from_station(station_name=station_name, measurement_types=measurement_types,
                                                          utc_period=utc_period)
 
+            if not any([bool(ts) for ts in result]):  # None data in period. Return blank.
+                break
             for ind, res in enumerate(result):
-                if not output[ind]:
-                    output[ind] = res
-                else:
-                    output[ind] = output[ind].extend(res)
+                if res:
+                    if not output[ind]:
+                        output[ind] = res
+                    else:
+                        output[ind] = output[ind].extend(res)
 
             result_end = result[0].time_axis.time_points_double[-1]  # Set the start of the new calls UtcPeriod.
             logging.info(f'Got {len(result[0])} datapoints from '
@@ -202,7 +264,7 @@ class NetatmoRepository(DataCollectionRepository):
         """Take a sequence of strings identifying specific timeseries and get data from these series according to
         the timespan defined in period.
 
-        Note: The reac_callback is a less specialized funciton than the TsRepository.read, so this method just calls
+        Note: The read_callback is a less specialized function than the TsRepository.read, so this method just calls
         the read_callback.
 
         Args:
@@ -213,8 +275,8 @@ class NetatmoRepository(DataCollectionRepository):
             A TsVector containing the resulting timeseries containing data enough to cover the query period.
         """
 
-        return {ts_id: ts for ts_id , ts in zip(list_of_ts_id, self.read_callback(ts_ids=StringVector([list_of_ts_id]),
-                                                                                  read_period=period))}
+        return {ts_id: ts for ts_id, ts in zip(list_of_ts_id, self.read_callback(ts_ids=StringVector([list_of_ts_id]),
+                                                                                 read_period=period))}
 
     def read_callback(self, *, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
         """This callback is passed as the default read_callback for a shyft.api.DtsServer.
@@ -226,14 +288,28 @@ class NetatmoRepository(DataCollectionRepository):
         Returns:
             A TsVector containing the resulting timeseries containing data enough to cover the query period.
         """
-
-        data = dict()
+        data = dict()  # Group ts_ids by repo.name (scheme).
         for enum, ts_id in enumerate(ts_ids):
-            data[ts_id] = dict(enum=enum, ts_id=ts_id, ts=None)
+            ts_id_props = self.parse_ts_id(ts_id=ts_id)
+            if ts_id_props['station_name'] not in data:
+                data[ts_id_props['station_name']] = []
+            data[ts_id_props['station_name']].append(dict(enum=enum, ts=None, **ts_id_props))
 
+        for station in data:
+            tsvec = self.get_measurements_from_station(station_name=station,
+                                                       measurement_types={item['data_type'] for item in data[station]},
+                                                       utc_period=read_period
+                                                       )
+            for index, ts in enumerate(tsvec):
+                data[station][index]['ts'] = ts
 
+        # Collapse nested lists and sort by initial enumerate:
+        transpose_data = []
+        for items in data.values():
+            transpose_data.extend(items)
+        sort = sorted(transpose_data, key=lambda item: item['enum'])
 
-        return self.read(ts_ids, read_period)
+        return TsVector([item['ts'] for item in sort])
 
     def find_callback(self, *, query: str) -> TsInfoVector:
         """This callback is passed as the default find_callback for a shyft.api.DtsServer.
