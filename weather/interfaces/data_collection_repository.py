@@ -17,32 +17,6 @@ class DataCollectionRepository(TsRepository):
         property that is used to route Dtss read and write callbacks to the DataCollectionRepository."""
         pass
 
-    @classmethod
-    @abstractmethod
-    def create_ts_id(cls, **kwargs) -> str:
-        """Create a valid ts_id url string that is identifiable for the read_callback of the
-        DataCollectionRepository."""
-        pass
-
-    @classmethod
-    @abstractmethod
-    def parse_ts_id(cls, *, ts_id: str) -> str:
-        """Get relevant information from the ts_id."""
-        pass
-
-    @classmethod
-    @abstractmethod
-    def create_ts_query(cls, **kwargs) -> str:
-        """Create a valid query url string that is identifiable for the find_callback of the
-        DataCollectionRepository."""
-        pass
-
-    @classmethod
-    @abstractmethod
-    def parse_ts_query(cls, *, query: str) -> str:
-        """Get relevant information from the ts_query"""
-        pass
-
     @abstractmethod
     def read_callback(self, *, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
         """This callback is passed as the default read_callback for a shyft.api.DtsServer.

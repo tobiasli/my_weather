@@ -1,66 +1,23 @@
-from typing import Dict, List, Sequence, Union, Iterable
+"""This module contains NetatmoRepository which contains all necessary methods for a DtssHost to handle communications
+with a Netatmo weather station service."""
+
+from typing import Dict, List, Sequence, Union
 import lnetatmo
-from shyft.api import (StringVector, UtcPeriod, TimeAxisByPoints, TimeSeries, POINT_INSTANT_VALUE, TsVector, TsInfoVector,
+from shyft.api import (StringVector, UtcPeriod, TimeAxisByPoints, TimeSeries, POINT_INSTANT_VALUE, TsVector,
+                       TsInfoVector,
                        TsInfo, time, utctime_now, Calendar)
+from weather.data_collection.netatmo_domain import NetatmoDomain
 from weather.interfaces.data_collection_repository import DataCollectionRepository
-from weather.utilities import rate_limiter, camel_converter
+from weather.data_collection.netatmo_identifiers import parse_ts_id, parse_ts_query
+from weather.utilities import rate_limiter
 import logging
-import urllib
 import numpy as np
 
-
-StationMetadataType = Dict[str, object]
+DeviceMetadataType = Dict[str, object]
 TimeType = Union[float, int, time]
 Number = Union[float, int]
 NoneType = type(None)
 NanType = type(np.nan)
-
-
-class NetatmoMeasurement:
-    """Class for representing a Netatmo measurement."""
-    name: str
-    unit: str
-
-    def __init__(self, name: str, unit: str) -> None:
-        self.name = name
-        self.unit = unit
-        self.name_lower = camel_converter.convert(name)
-
-    def __str__(self) -> str:
-        return self.name
-
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(name="{self.name}", unit="{self.unit}")'
-
-
-class NetatmoMeasurementTypes:
-    """Handle a set of NetatmoMeasurements"""
-
-    def __init__(self, measurement_types: Iterable[NetatmoMeasurement]) -> None:
-        self.dict = {meas.name_lower: meas for meas in measurement_types}
-        self.dir = sorted([meas.name_lower for meas in measurement_types])
-
-    def __getattr__(self, item: str) -> str:
-        return self.dict[item]
-
-    def __dir__(self) -> List[str]:
-        return self.dir + dir(super(type(self))) + ['dir', 'dict']
-
-
-_measurements = [
-    ('Temperature', '°C'),
-    ('CO2', 'ppm'),
-    ('Humidity', '%'),
-    ('Pressure', 'mbar'),
-    ('Noise', 'db'),
-    ('Rain', 'mm'),
-    ('WindStrength', 'km / h'),
-    ('WindAngle', 'angles'),
-    ('Guststrength', 'km / h'),
-    ('GustAngle', 'angles')
-]
-
-types = NetatmoMeasurementTypes([NetatmoMeasurement(*item) for item in _measurements])
 
 
 class NetatmoRepositoryError(Exception):
@@ -84,53 +41,22 @@ class NetatmoRepository(DataCollectionRepository):
         # performing API calls to the Netatmo servers:
         self.rate_limiters = [rate_limiter.RateLimiter(**api_limit) for api_limit in api_limits.values()]
         for limiter in self.rate_limiters:
-            self._get_measurements_from_station = limiter.rate_limit_decorator(self._get_measurements_from_station)
+            self._get_measurements_block = limiter.rate_limit_decorator(self._get_measurements_block)
 
-        self.auth = None
-        self.station_data: lnetatmo.WeatherStationData = None
-        self.stations: List[StationMetadataType] = None
-        self.stations_by_id: Dict[str, StationMetadataType] = None
-        self.stations_by_name: Dict[str, StationMetadataType] = None
+        self.auth: lnetatmo.ClientAuth = None
+        self.device_data: lnetatmo.WeatherStationData = None
+        self.domain: NetatmoDomain = None
 
         if direct_login:  # Sometimes we want to use methods that don't need login.
             self.auth = lnetatmo.ClientAuth(clientId=client_id, clientSecret=client_secret, username=username,
                                             password=password,
                                             scope='read_station')
-            self.station_data = lnetatmo.WeatherStationData(self.auth)
+            self.device_data = lnetatmo.WeatherStationData(self.auth)
 
-            self.stations: List[StationMetadataType] = list(self.station_data.stations.values())
-            self.stations_by_id: Dict[str, StationMetadataType] = self.station_data.stations
-            self.stations_by_name: Dict[str, StationMetadataType] = {station['station_name']: station for station in
-                                                                     self.stations}
+            self.domain = NetatmoDomain(self.device_data.stations)
 
+        # noinspection PyArgumentList
         self.utc = Calendar()
-
-    @classmethod
-    def create_ts_id(cls, *, station_name: str, data_type: str) -> str:
-        """Create a valid ts url from a netatmo station_name, module_name and data_type to identify a timeseries."""
-        return f'{cls.name}://{station_name}/{data_type}'
-
-    @classmethod
-    def parse_ts_id(cls, *, ts_id: str) -> Dict[str, str]:
-        """Create a valid ts url from a netatmo station_name, module_name and data_type to identify a timeseries."""
-        parse = urllib.parse.urlparse(ts_id)
-        if parse.scheme != cls.name:
-            raise NetatmoRepositoryError(f'ts_id scheme does not match repository name: '
-                                         f'ts_id={parse.scheme}, {cls.__name__}={cls.name}')
-
-        return {'station_name': parse.netloc,
-                'data_type': parse.path.split('/')[1]}
-
-    @classmethod
-    def create_ts_query(cls, *, station_name: str, data_type: str) -> str:
-        """Create a valid query url from a netatmo station_name, module_name and data_type to identify a timeseries.
-        Uses the same format as NetatmoRepository.create_ts_id()."""
-        return cls.create_ts_id(station_name=station_name, data_type=data_type)
-
-    @classmethod
-    def parse_ts_query(cls, *, ts_query) -> Dict[str, str]:
-        """Create a valid ts url from a netatmo station_name, module_name and data_type to identify a timeseries."""
-        return cls.parse_ts_id(ts_id=ts_query)
 
     def wait_for_rate_limiters(self) -> None:
         """Check with the rate limiters, and wait if needed."""
@@ -147,29 +73,21 @@ class NetatmoRepository(DataCollectionRepository):
         """Method that replaces None with np.nan in a sequence."""
         return [np.nan if value is None else value for value in values]
 
-    def _get_measurements_from_station(self, *,
-                                       station_name: str,
-                                       measurement_types: Iterable[Union[NetatmoMeasurement, str]],
-                                       utc_period: UtcPeriod = None
-                                       ) -> TsVector:
-        """Get data for a specific station and set of measurements. utc_period is the timespan for which we ask for
+    def _get_measurements_block(self, *,
+                                device_id: str,
+                                module_id: str,
+                                measurements: Sequence[str],
+                                utc_period: UtcPeriod = None
+                                ) -> TsVector:
+        """Get data for a specific device and set of measurements. utc_period is the timespan for which we ask for
         data, but it is optional, as utc_period=None asks for the longest possible timespan of data.
 
         NB: Calls are limited to 1024 values. Must split to get all data in period (50 req pr sec, 500 req pr hour).
 
         Args:
-            station_name: The name of the station.
-            measurement_types: List of measurement types:
-                Temperature (°C)
-                CO2 (ppm)
-                Humidity (%)
-                Pressure (mbar)
-                Noise (db)
-                Rain (mm)
-                WindStrength (km/h)
-                WindAngle (angles)
-                Guststrength (km/h)
-                GustAngle (angles)
+            device_id: Unique identifier for the netatmo device.
+            module_id: Unique identifier for the netatmo module (can be None, '').
+            measurements: A Sequence of strings representing the measurements we want to fetch.
             utc_period: Inclusive start/end. The period we want data for (if none, the longest possible period
                         (up to 1024 values).
 
@@ -180,69 +98,67 @@ class NetatmoRepository(DataCollectionRepository):
         date_start = utc_period.start if utc_period else None
         date_end = utc_period.end if utc_period else None
 
-        measurement_types_str = ','.join([str(meas) for meas in measurement_types])
-
         self.wait_for_rate_limiters()
         self.add_action_timestamp_to_rate_limiters(utctime_now())
-        data = self.station_data.getMeasure(device_id=self.stations_by_name[station_name]['_id'],
-                                            scale='max',
-                                            mtype=measurement_types_str,
-                                            date_begin=date_start,
-                                            date_end=date_end)
+
+        measurement_types_str = ', '.join([m for m in measurements])
+
+        data = self.device_data.getMeasure(
+            device_id=device_id,
+            module_id=module_id,
+            scale='max',
+            mtype=measurement_types_str,
+            date_begin=date_start,
+            date_end=date_end)
 
         if not data['body']:
-            tsvec = TsVector([TimeSeries() for meas in measurement_types])
+            # noinspection PyArgumentList
+            output = [TimeSeries() for _ in measurements]
         else:
-            time = [float(timestamp) for timestamp in data['body'].keys()]
-            dt_list = [t2 - t1 for t1, t2 in zip(time[0:-2], time[1:-1])]
+            t = [float(timestamp) for timestamp in data['body'].keys()]
+            dt_list = [t2 - t1 for t1, t2 in zip(t[0:-2], t[1:-1])]
             dt_mode = max(set(dt_list), key=dt_list.count)
-            ta = TimeAxisByPoints(time + [time[-1] + dt_mode])
+            ta = TimeAxisByPoints(t + [t[-1] + dt_mode])
 
             values_pr_time = [value for value in data['body'].values()]
             values = list(map(list, zip(*values_pr_time)))
 
             # Remove nan:
+            output = [TimeSeries(ta, self.set_none_to_nan(vector), POINT_INSTANT_VALUE) for vector in values]
 
-            tsvec = TsVector([TimeSeries(ta, self.set_none_to_nan(vector), POINT_INSTANT_VALUE) for vector in values])
+        return TsVector(output)
 
-        return tsvec
-
-    def get_measurements_from_station(self, *,
-                                      station_name: str,
-                                      measurement_types: Iterable[Union[NetatmoMeasurement, str]],
-                                      utc_period: UtcPeriod
-                                      ) -> TsVector:
-        """Get data for a specific station and set of measurements. utc_period defines the data period.
-        Netatmo only returns data in 1024 point chunks. So this method performs multiple calls to retrieve all queried
+    def get_measurements(self, *,
+                         device_id: str,
+                         module_id: str,
+                         measurements: Sequence[str],
+                         utc_period: UtcPeriod
+                         ) -> TsVector:
+        """Get data for a specific device and set of measurements. utc_period defines the data period.
+        Netatmo only returns data in 1024 point chunks, so this method performs multiple calls to retrieve all queried
         data.
 
         Args:
-            station_name: The name of the station.
-            measurement_types: Comma seperated string of measurement names:
-                Temperature (°C)
-                CO2 (ppm)
-                Humidity (%)
-                Pressure (mbar)
-                Noise (db)
-                Rain (mm)
-                WindStrength (km/h)
-                WindAngle (angles)
-                Guststrength (km/h)
-                GustAngle (angles)
+            device_id: Unique identifier for the netatmo device.
+            module_id: Unique identifier for the netatmo module (can be None, '').
+            measurements: A Sequence of strings representing the measurements we want to fetch.
             utc_period: Inclusive start/end. The period we want data for (if none, the longest possible period
                         (up to 1024 values).
 
         Returns:
-            A Tsvector with timeseries containing data for each measurement type, in the order of the input.
+            A TsVector with timeseries containing data for each measurement type, in the order of the input.
         """
 
         result_end = utc_period.start
-        output = [TimeSeries() for measurement in measurement_types]
+        # noinspection PyArgumentList
+        output = [TimeSeries() for _ in measurements]
         while result_end < utc_period.end:
             utc_period = UtcPeriod(result_end, utc_period.end)  # Define a UtcPeriod for the remaining data.
 
-            result = self._get_measurements_from_station(station_name=station_name, measurement_types=measurement_types,
-                                                         utc_period=utc_period)
+            result = self._get_measurements_block(device_id=device_id,
+                                                  module_id=module_id,
+                                                  measurements=measurements,
+                                                  utc_period=utc_period)
 
             if not any([bool(ts) for ts in result]):  # None data in period. Return blank.
                 break
@@ -254,6 +170,7 @@ class NetatmoRepository(DataCollectionRepository):
                         output[ind] = output[ind].extend(res)
 
             result_end = result[0].time_axis.time_points_double[-1]  # Set the start of the new calls UtcPeriod.
+            # noinspection PyArgumentList
             logging.info(f'Got {len(result[0])} datapoints from '
                          f'{self.utc.to_string(result[0].time_axis.time_points_double[0])} to '
                          f'{self.utc.to_string(result_end)}')
@@ -290,18 +207,27 @@ class NetatmoRepository(DataCollectionRepository):
         """
         data = dict()  # Group ts_ids by repo.name (scheme).
         for enum, ts_id in enumerate(ts_ids):
-            ts_id_props = self.parse_ts_id(ts_id=ts_id)
-            if ts_id_props['station_name'] not in data:
-                data[ts_id_props['station_name']] = []
-            data[ts_id_props['station_name']].append(dict(enum=enum, ts=None, **ts_id_props))
+            ts_id_props = parse_ts_id(ts_id=ts_id)
+            measurement = self.domain.get_measurement(**ts_id_props)
 
-        for station in data:
-            tsvec = self.get_measurements_from_station(station_name=station,
-                                                       measurement_types={item['data_type'] for item in data[station]},
-                                                       utc_period=read_period
-                                                       )
+            if measurement.source_name not in data:
+                data[measurement.source_name] = []
+            data[measurement.source_name].append(
+                dict(enum=enum, ts=None, measurement=measurement))
+
+        for source_name in data:
+            measurements = [meas['measurement'] for meas in data[source_name]]
+
+            device_id = measurements[0].device.id
+            module_id = measurements[0].module.id if measurements[0].module else None
+            measurements = [m.data_type.name for m in measurements]
+            tsvec = self.get_measurements(device_id=device_id,
+                                          module_id=module_id,
+                                          measurements=measurements,
+                                          utc_period=read_period
+                                          )
             for index, ts in enumerate(tsvec):
-                data[station][index]['ts'] = ts
+                data[source_name][index]['ts'] = ts
 
         # Collapse nested lists and sort by initial enumerate:
         transpose_data = []
@@ -324,7 +250,7 @@ class NetatmoRepository(DataCollectionRepository):
         return self.find(query)
 
     def find(self, query: str) -> TsInfoVector:
-        """Checl if data matching the query exists in the data source.
+        """Check if data matching the query exists in the data source.
 
         Args:
             query: The url representing a relevant query for this DataCollectionRepository.
@@ -332,8 +258,22 @@ class NetatmoRepository(DataCollectionRepository):
         Returns:
             A sequence of results matching the query.
         """
+        info = parse_ts_query(ts_query=query)
 
-        tsi = TsInfo(query)
+        meas = self.domain.get_measurement(**info)
+
+        # noinspection PyArgumentList
+        tsi = TsInfo(
+            name=meas.ts_id,
+            point_fx=meas.data_type.point_interpretation,
+            delta_t=np.nan,
+            olson_tz_id=meas.device.place['timezone'],
+            data_period=UtcPeriod(meas.source.date_setup, meas.source.dashboard_data['time_utc']),
+            created=meas.source.date_setup,
+            modified=meas.source.dashboard_data['time_utc']
+        )
+
+        # noinspection PyArgumentList
         tsiv = TsInfoVector()
         tsiv.append(tsi)
         return tsiv
@@ -355,74 +295,3 @@ class NetatmoRepository(DataCollectionRepository):
                 If the named time-series does not exist, create it.
         """
         raise NotImplementedError("read_forecast")
-
-# !/usr/bin/python
-# coding=utf-8
-
-# 2013-01 : philippelt@users.sourceforge.net
-
-# This is an example of graphing Temperature and Humidity from a module on the last 3 days
-# The Matplotlib library is used and should be installed before running this sample program
-
-# import datetime, time
-#
-# from matplotlib import pyplot as plt
-# from matplotlib import dates
-# from matplotlib.ticker import FormatStrFormatter
-#
-# # Access to the sensors
-# auth = lnetatmo.ClientAuth()
-# dev = lnetatmo.DeviceList(auth)
-#
-# # Time of information collection : 3*24hours windows to now
-# now = time.time()
-# start = now - 3 * 24 * 3600
-#
-# # Get Temperature and Humidity with GETMEASURE web service (1 sample every 30min)
-# resp = dev.getMeasure(device_id='xxxx',  # Replace with your values
-#                       module_id='xxxx',  # "      "    "    "
-#                       scale="30min",
-#                       mtype="Temperature,Humidity",
-#                       date_begin=start,
-#                       date_end=now)
-#
-# # Extract the timestamp, temperature and humidity from the more complex response structure
-# result = [(int(k), v[0], v[1]) for k, v in resp['body'].items()]
-# # Sort samples by timestamps (Warning, they are NOT sorted by default)
-# result.sort()
-# # Split in 3 lists for use with Matplotlib (timestamp on x, temperature and humidity on two y axis)
-# xval, ytemp, yhum = zip(*result)
-#
-# # Convert the x axis values from Netatmo timestamp to matplotlib timestamp...
-# xval = [dates.date2num(datetime.datetime.fromtimestamp(x)) for x in xval]
-#
-# # Build the two curves graph (check Matplotlib documentation for details)
-# fig = plt.figure()
-# plt.xticks(rotation='vertical')
-#
-# graph1 = fig.add_subplot(111)
-#
-# graph1.plot(xval, ytemp, color='r', linewidth=3)
-# graph1.set_ylabel(u'Température', color='r')
-# graph1.set_ylim(0, 25)
-# graph1.yaxis.grid(color='gray', linestyle='dashed')
-# for t in graph1.get_yticklabels(): t.set_color('r')
-# graph1.yaxis.set_major_formatter(FormatStrFormatter(u'%2.0f °C'))
-#
-# graph2 = graph1.twinx()
-#
-# graph2.plot(xval, yhum, color='b', linewidth=3)
-# graph2.set_ylabel(u'Humidité', color='b')
-# graph2.set_ylim(50, 100)
-# for t in graph2.get_yticklabels(): t.set_color('b')
-# graph2.yaxis.set_major_formatter(FormatStrFormatter(u'%2i %%'))
-#
-# graph1.xaxis.set_major_locator(dates.HourLocator(interval=6))
-# graph1.xaxis.set_minor_locator(dates.HourLocator())
-# graph1.xaxis.set_major_formatter(dates.DateFormatter("%d-%Hh"))
-# graph1.xaxis.grid(color='gray')
-# graph1.set_xlabel(u'Jour et heure de la journée')
-#
-# # X display the resulting graph (you could generate a PDF/PNG/... in place of display).
-# # The display provides a minimal interface that notably allows you to save your graph
-# plt.show()
