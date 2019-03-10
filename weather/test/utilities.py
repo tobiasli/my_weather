@@ -1,25 +1,15 @@
 """weather.test.utilities are different functions and classes that are needed for tests."""
-from abc import ABC
 
 from weather.interfaces.data_collection_repository import DataCollectionRepository
-from shyft.api import (StringVector, UtcPeriod, TsVector, TsInfoVector, TimeSeries, TimeAxisByPoints, UtcTimeVector,
-                       point_interpretation_policy, TsInfo, utctime_now, TimeAxis, time)
-import random
+from shyft.api import (StringVector, UtcPeriod, TsVector, TsInfoVector, TimeSeries, point_interpretation_policy, TsInfo, utctime_now,
+                       time)
 import urllib
 from typing import Dict, Union, List, Sequence
-from math import ceil
+
+from weather.utilities.create_ts import create_ts
 
 Number = Union[int, float]
 Time = Union[time, int, float]
-
-
-def create_ts(value: Number = random.random(), read_period: UtcPeriod = None, dt: Time = 1) -> TimeSeries:
-    """Function for creating arbitrary timeseries."""
-    if read_period:
-        ta = TimeAxis(read_period.start, dt, ceil(read_period.end-read_period.start)/dt)
-    else:
-        ta = TimeAxisByPoints(UtcTimeVector([1, 2, 3]))
-    return TimeSeries(ta, value, point_interpretation_policy.POINT_INSTANT_VALUE)
 
 
 class MockRepositoryError(Exception):
@@ -65,7 +55,7 @@ class MockRepository1(DataCollectionRepository):
         """Get relevant information from the ts_query"""
         return cls.parse_ts_id(ts_id=query)
 
-    def read_callback(self, *, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
+    def read_callback(self, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
         """This callback is passed as the default read_callback for a shyft.api.DtsServer.
 
         Args:
@@ -83,7 +73,7 @@ class MockRepository1(DataCollectionRepository):
 
         return tsv
 
-    def find_callback(self, *, query: str) -> TsInfoVector:
+    def find_callback(self, query: str) -> TsInfoVector:
         """This callback is passed as the default find_callback for a shyft.api.DtsServer.
 
         Args:

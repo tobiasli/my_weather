@@ -195,7 +195,7 @@ class NetatmoRepository(DataCollectionRepository):
         return {ts_id: ts for ts_id, ts in zip(list_of_ts_id, self.read_callback(ts_ids=StringVector([list_of_ts_id]),
                                                                                  read_period=period))}
 
-    def read_callback(self, *, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
+    def read_callback(self, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
         """This callback is passed as the default read_callback for a shyft.api.DtsServer.
 
         Args:
@@ -237,7 +237,7 @@ class NetatmoRepository(DataCollectionRepository):
 
         return TsVector([item['ts'] for item in sort])
 
-    def find_callback(self, *, query: str) -> TsInfoVector:
+    def find_callback(self, query: str) -> TsInfoVector:
         """This callback is passed as the default find_callback for a shyft.api.DtsServer.
 
         Args:

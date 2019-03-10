@@ -3,8 +3,16 @@ import socket
 import os
 import sys
 import pytest
-from shyft.api import Calendar, UtcPeriod, StringVector, TsVector
-from weather.service.dtss import DtssHost
+from shyft.api import Calendar, UtcPeriod, StringVector, TsVector, DtsClient, TimeSeries
+from weather.service.dtss import DtssHost, create_heartbeat_request
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
+    handlers=[
+        logging.StreamHandler()
+    ])
 
 # Get credentials:
 if not 'CONFIG_DIRECTORY' in os.environ:
@@ -60,3 +68,33 @@ def test_find_callback_success(dtss):
     query = 'mock1://something/1'
     tsiv = dtss.find_callback(query=query)
     assert tsiv[0].name == query
+
+
+def test_dts_client(dtss):
+    dtss.start()
+    timeseries = ['mock1://something/1', 'mock2://something_else/2', 'mock1://something_strange/3']
+    cal = Calendar(3600)
+    try:
+        c = DtsClient(dtss.address)
+        tsv_in = TsVector([TimeSeries(ts_id) for ts_id in timeseries])
+        period = UtcPeriod(cal.time(2019, 3, 1), cal.time(2019, 3, 3))
+        tsv = c.evaluate(tsv_in, period)
+        assert tsv
+    finally:
+        dtss.stop()
+
+
+def test_dts_client_heartbeat(dtss):
+    dtss.start()
+    heartbeat = create_heartbeat_request()
+    cal = Calendar(3600)
+    try:
+        c = DtsClient(dtss.address)
+        tsv_in = TsVector([TimeSeries(heartbeat)])
+        period = UtcPeriod(cal.time(2019, 3, 1), cal.time(2019, 3, 3))
+        tsv = c.evaluate(tsv_in, period)
+        assert tsv
+        tsiv = c.find(heartbeat)
+        assert tsiv[0].name == 'heartbeat'
+    finally:
+        dtss.stop()

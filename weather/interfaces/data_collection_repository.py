@@ -18,7 +18,7 @@ class DataCollectionRepository(TsRepository):
         pass
 
     @abstractmethod
-    def read_callback(self, *, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
+    def read_callback(self, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
         """This callback is passed as the default read_callback for a shyft.api.DtsServer.
 
         Args:
@@ -32,7 +32,7 @@ class DataCollectionRepository(TsRepository):
         pass
 
     @abstractmethod
-    def find_callback(self, *, query: str) -> TsInfoVector:
+    def find_callback(self, query: str) -> TsInfoVector:
         """This callback is passed as the default find_callback for a shyft.api.DtsServer.
 
         Args:
