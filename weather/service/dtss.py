@@ -2,13 +2,14 @@
 me poll timeseries data either directly from the source (Netatmo API) or from the containers (local cache) available to
 the Dtss. This lets gives me local storage of the data that can be queried freely."""
 
-from typing import Dict, Any, Sequence
+from typing import Dict, Any, Sequence, List, Tuple
 from shyft.api import (DtsServer, DtsClient, StringVector, TsVector, UtcPeriod, TsInfoVector, POINT_INSTANT_VALUE, TsInfo,
                        TimeSeries)
 from weather.interfaces.data_collection_repository import DataCollectionRepository
 from weather.data_collection.netatmo import NetatmoRepository
 from weather.test.utilities import MockRepository1, MockRepository2  # Used for tests.
 from weather.utilities.create_ts import create_ts
+from weather.utilities import tregex
 import numpy as np
 import logging
 import urllib
@@ -88,7 +89,8 @@ class DtssHost:
         try:
             # Verify that server is running:
             c = DtsClient(self.address)
-            response = c.find(create_heartbeat_request())
+            response = c.find(create_heartbeat_request('startup verification'))
+            del c
             if not response:
                 raise DtssHostError('DtssServer is not responding to expected calls.')
         except DtssHostError:
@@ -229,10 +231,11 @@ class HeartbeatRepository(DataCollectionRepository):
         Returns:
             A sequence of results matching the query.
         """
-        logging.info(f'DtssHost Heartbeat received find_callback on DtsServer at: {self.host.address}.')
+        message = parse_heartbeat(query=query)
+        logging.info(f'DtssHost Heartbeat received callback {message} on DtsServer at: {self.host.address}.')
         # noinspection PyArgumentList
         tsi = TsInfo(
-            name='heartbeat',
+            name=f'heartbeat: {message}',
             point_fx=POINT_INSTANT_VALUE,
             delta_t=np.nan,
             olson_tz_id='Some/Timezone',
@@ -265,6 +268,12 @@ class HeartbeatRepository(DataCollectionRepository):
         raise NotImplementedError("read_forecast")
 
 
-def create_heartbeat_request() -> str:
+def create_heartbeat_request(message: str = '') -> str:
     """Create a valid if checking if read_callbacks work as intended."""
-    return 'heartbeat://callback'
+    return f'heartbeat://callback/{message}'
+
+
+def parse_heartbeat(*, query: str) -> str:
+    """Create a valid ts url from a netatmo device_name, module_name and data_type to identify a timeseries."""
+    parse = urllib.parse.urlparse(query)
+    return parse.path.split('/')[1]

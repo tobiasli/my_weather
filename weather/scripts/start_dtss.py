@@ -3,34 +3,34 @@ import os
 import sys
 import socket
 import time
-from weather.service.dtss import DtssHost
+from weather.service.dtss import DtssHost, create_heartbeat_request
+from shyft.api import DtsClient
 
-# Get credentials:
+# Get configs from config directory:
 if not 'CONFIG_DIRECTORY' in os.environ:
     raise EnvironmentError('Cannot find path to app authentication codes.')
-
 sys.path.append(os.environ['CONFIG_DIRECTORY'])
-
 from dtss_config import configs
 
+# Get config for current machine:
 if socket.gethostname() not in configs:
     raise Exception(f"Can't find configuration for machine {socket.gethostname()}")
 DTSS_CONFIG = configs[socket.gethostname()]
 
+# Initialize DtssHost:
 host = DtssHost(**DTSS_CONFIG)
 
+# Start DtssHost:
 host.start()
-try:
-    """Test an actual dtss call towards the Netatmo api."""
-    from shyft.api import DtsClient, TimeSeries, TsVector, UtcPeriod, Calendar
-    from weather.data_collection.netatmo_identifiers import create_ts_id
 
-    ts = TimeSeries(create_ts_id(device_name='Stua', module_name='', data_type='Temperature'))
-    tsv = TsVector([ts])
-    c = DtsClient('localhost:20001')
-    c.evaluate(tsv, UtcPeriod(Calendar().time(2019, 3, 1), Calendar().time(2019, 3, 8)))
-    #
-    # while True:
-    #     time.sleep(1)
+# Stay alive loop, with heartbeat every minute.
+try:
+    client = DtsClient(host.address)
+    while True:
+        a = client.find(create_heartbeat_request('start_dtss.py'))
+        if not a:
+            break
+        time.sleep(60)
 finally:
+    del client
     host.stop()
