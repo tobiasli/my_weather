@@ -1,0 +1,17 @@
+language: python
+dist: xenial
+sudo: false
+python:
+- '3.6'
+before_install:
+- export PYTHONPATH=$PYTHONPATH:$(pwd)
+install:
+- conda create --yes -c sigbjorn -c conda-forge -n shyft python=3.6 pyyaml numpy netcdf4 gdal matplotlib requests nose coverage pip shapely pyproj jupyter pandas shyft scipy bokeh
+- source activate shyft
+- pip install python-coveralls
+- pip install pytest
+- pip install pytest-cov
+script:
+- pytest --cov=my_weather my_weather
+after_success:
+- coveralls

@@ -92,7 +92,7 @@ class NetatmoRepository(DataCollectionRepository):
                         (up to 1024 values).
 
         Returns:
-            A Tsvector with timeseries containing data for each measurement type, in the order of the input.
+            A TsVector with timeseries containing data for each measurement type, in the order of the input.
         """
 
         date_start = utc_period.start if utc_period else None
@@ -116,6 +116,7 @@ class NetatmoRepository(DataCollectionRepository):
             output = [TimeSeries() for _ in measurements]
         else:
             t = [float(timestamp) for timestamp in data['body'].keys()]
+            # Add an additional timestep fmod(dt) forward in time to indicate the validness of the last value.
             dt_list = [t2 - t1 for t1, t2 in zip(t[0:-2], t[1:-1])]
             dt_mode = max(set(dt_list), key=dt_list.count)
             ta = TimeAxisByPoints(t + [t[-1] + dt_mode])

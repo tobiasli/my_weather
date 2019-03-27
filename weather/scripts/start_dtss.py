@@ -2,6 +2,7 @@
 import os
 import sys
 import socket
+import time
 from weather.service.dtss import DtssHost
 
 # Get credentials:
@@ -19,4 +20,17 @@ DTSS_CONFIG = configs[socket.gethostname()]
 host = DtssHost(**DTSS_CONFIG)
 
 host.start()
+try:
+    """Test an actual dtss call towards the Netatmo api."""
+    from shyft.api import DtsClient, TimeSeries, TsVector, UtcPeriod, Calendar
+    from weather.data_collection.netatmo_identifiers import create_ts_id
 
+    ts = TimeSeries(create_ts_id(device_name='Stua', module_name='', data_type='Temperature'))
+    tsv = TsVector([ts])
+    c = DtsClient('localhost:20001')
+    c.evaluate(tsv, UtcPeriod(Calendar().time(2019, 3, 1), Calendar().time(2019, 3, 8)))
+    #
+    # while True:
+    #     time.sleep(1)
+finally:
+    host.stop()
