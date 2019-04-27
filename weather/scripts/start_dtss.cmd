@@ -6,7 +6,7 @@ echo %cd%
 set PATH=%PATH%;%USERPROFILE%\Miniconda3\condabin;
 call conda activate shyft
 rem Add module path to pythonpath.
-set PATH=%PATH%;%cd%
-call python -c "from weather.scripts import start_dtss"
+set PYTHONPATH=%PATH%;%cd%
+call python weather\scripts\start_dtss.py
 endlocal
 pause

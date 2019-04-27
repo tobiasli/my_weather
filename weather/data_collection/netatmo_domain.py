@@ -2,7 +2,7 @@
 from weather.utilities import data_class, camel_converter
 from weather.data_collection.netatmo_identifiers import create_ts_id, create_ts_query
 from typing import List, Union, Iterable, Dict, Any
-from shyft.api import time, Calendar, point_interpretation_policy as point_fx
+from shyft.api import time, Calendar, point_interpretation_policy as point_fx, TimeSeries
 import lnetatmo
 
 TimeType = Union[float, int, time]
@@ -37,6 +37,11 @@ class NetatmoMeasurementType:
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(name="{self.name}", unit="{self.unit}")'
+
+    def __eq__(self, other: "NetatmoMeasurementType") -> bool:
+        if not isinstance(other, NetatmoMeasurementType):
+            return False
+        return (self.name, self.unit, self.point_interpretation) == (other.name, other.unit, other.point_interpretation)
 
 
 class NetatmoMeasurementTypes(data_class.DataClass):
@@ -113,6 +118,11 @@ class NetatmoMeasurement:
     def ts_query(self) -> str:
         """Create the proper ts_query for the measurement."""
         return create_ts_query(device_name=self.device_name, module_name=self.module_name, data_type=self.data_type.name)
+
+    @property
+    def time_series(self) -> TimeSeries:
+        """Return a TimeSeries representation of measurement."""
+        return TimeSeries(self.ts_id)
 
 
 _measurements = [
@@ -254,9 +264,12 @@ class NetatmoDomain:
              if device.name == name),
             None)
 
-    def get_measurement(self, *, device_name: str, data_type: str, module_name: str = None) -> NetatmoMeasurement:
+    def get_measurement(self, *, device_name: str, data_type: Union[str, NetatmoMeasurementType], module_name: str = None) -> NetatmoMeasurement:
         """Given a device, a module (optional) and a data type, return the corresponding measurement from the domain:"""
+        if isinstance(data_type, str):
+            data_type = types.get_measurement(data_type)
+
         device = self.get_device_by_name(name=device_name)
         module = device.get_module_by_name(name=module_name)
         source = module or device
-        return source.get_measurement_by_name(name=data_type)
+        return source.get_measurement_by_name(name=data_type.name)

@@ -101,7 +101,7 @@ class NetatmoRepository(DataCollectionRepository):
         self.wait_for_rate_limiters()
         self.add_action_timestamp_to_rate_limiters(utctime_now())
 
-        measurement_types_str = ', '.join([m for m in measurements])
+        measurement_types_str = ','.join([m for m in measurements])
 
         data = self.device_data.getMeasure(
             device_id=device_id,

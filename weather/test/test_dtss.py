@@ -86,7 +86,7 @@ def test_dts_client(dtss):
 
 def test_dts_client_heartbeat(dtss):
     dtss.start()
-    heartbeat = create_heartbeat_request()
+    heartbeat = create_heartbeat_request('test')
     cal = Calendar(3600)
     try:
         c = DtsClient(dtss.address)
@@ -95,6 +95,6 @@ def test_dts_client_heartbeat(dtss):
         tsv = c.evaluate(tsv_in, period)
         assert tsv
         tsiv = c.find(heartbeat)
-        assert tsiv[0].name == 'heartbeat'
+        assert tsiv[0].name == 'heartbeat: test'
     finally:
         dtss.stop()

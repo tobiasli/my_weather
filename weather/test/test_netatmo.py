@@ -69,10 +69,10 @@ def test__get_measurements_block(net, domain):
 def test_get_measurements(net, domain):
     # This method uses a period longer than 1024 values, utilizing a rate limiter to not trip Netatmo api limits.
     period = UtcPeriod(Calendar().time(2019, 3, 1), Calendar().time(2019, 3, 8))
-    measurement = domain.get_measurement(device_name='Stua', data_type='Temperature')
+    measurement = domain.get_measurement(device_name='Stua', data_type=types.temperature.name)
     tsvec = net.get_measurements(device_id=measurement.device_id,
                                  module_id=measurement.module_id,
-                                 measurements=[measurement.data_type.name],
+                                 measurements=[measurement.data_type.name, types.humidity.name],
                                  utc_period=period)
 
     assert tsvec[0].values.to_numpy().all()

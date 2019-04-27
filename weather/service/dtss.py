@@ -83,7 +83,7 @@ class DtssHost:
             logging.info('Attempted to start a server that is already running.')
         else:
             self.dtss = self.make_server()
-            logging.info(f'DtsServer start at {self.dtss_port_num}.')
+            logging.info(f'DtsServer start at {self.address}. Repositories: {[repo for repo in self.repos]}')
             self.dtss.start_async()
 
         try:
