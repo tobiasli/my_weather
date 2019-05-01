@@ -117,7 +117,8 @@ class NetatmoMeasurement:
     @property
     def ts_query(self) -> str:
         """Create the proper ts_query for the measurement."""
-        return create_ts_query(device_name=self.device_name, module_name=self.module_name, data_type=self.data_type.name)
+        return create_ts_query(device_name=self.device_name, module_name=self.module_name,
+                               data_type=self.data_type.name)
 
     @property
     def time_series(self) -> TimeSeries:
@@ -256,20 +257,34 @@ class NetatmoDomain:
             NetatmoDevice(**device) for device in metadata.values()
         ]
 
-    def get_device_by_name(self, *, name: str) -> Union[NetatmoDevice, None]:
-        """Get a NetatmoDevice object by referencing the name of the device."""
-        return next(
-            (device
-             for device in self.devices
-             if device.name == name),
-            None)
+        self.data_source_dict: Dict[str, NetatmoModule] = {}
+        data_sources: List[NetatmoModule] = [
+                                    module for device in self.devices for module in device.modules
+                                            ] + self.devices
+        for data_source in data_sources:
+            if data_source.name in self.data_source_dict:
+                raise NetatmoDomainError('NetatmoDomain does currently only support modules/devices with unique names. '
+                                         f'In the current configuration, you have two modules named {data_source.name}')
+            self.data_source_dict[data_source.name] = data_source
 
-    def get_measurement(self, *, device_name: str, data_type: Union[str, NetatmoMeasurementType], module_name: str = None) -> NetatmoMeasurement:
+    def get_data_source_by_name(self, *, name: str) -> Union[NetatmoModule, None]:
+        """Get a NetatmoDevice object by referencing the name of the device."""
+        if name not in self.data_source_dict:
+            return None
+        return self.data_source_dict[name]
+
+    def get_measurement(self, *, device_name: str, data_type: Union[str, NetatmoMeasurementType],
+                        module_name: str = None) -> NetatmoMeasurement:
         """Given a device, a module (optional) and a data type, return the corresponding measurement from the domain:"""
         if isinstance(data_type, str):
             data_type = types.get_measurement(data_type)
 
-        device = self.get_device_by_name(name=device_name)
-        module = device.get_module_by_name(name=module_name)
-        source = module or device
+        data_source = self.get_data_source_by_name(name=device_name)
+
+        # If module_name is provided, we assume data_source is a device with module_name as a submodule.
+        # This submodule is then the source.
+        if module_name:
+            source = data_source.get_module_by_name(name=module_name)
+        else:
+            source = data_source
         return source.get_measurement_by_name(name=data_type.name)

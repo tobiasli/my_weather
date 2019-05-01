@@ -13,7 +13,7 @@ logging.basicConfig(
 
 from shyft.api import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries, point_interpretation_policy
 from bokeh.plotting import figure, show, output_file
-from bokeh.models import DatetimeTickFormatter
+from bokeh.models import DatetimeTickFormatter, Range1d, LinearAxis
 import numpy as np
 
 from weather.data_collection.netatmo_domain import NetatmoDomain, types
@@ -27,22 +27,25 @@ from netatmo_config import login
 # Get measurements form domain:
 domain = NetatmoDomain(**login)
 device = 'Stua'
-module = 'Kjelleren'
+module = ''
 plot_info = [
-    {'type': types.temperature, 'color': 'crimson', 'axis': 'left'},
-    {'type': types.co2, 'color': 'black', 'axis': 'right'},
-    # {'type': types.noise, 'color': 'forestgreen', 'axis': 'left'}
+    {'type': types.temperature, 'color': 'crimson', 'axis_side': 'left'},
+    {'type': types.co2, 'color': 'black', 'axis_side': 'right'},
+    {'type': types.humidity, 'color': 'forestgreen', 'axis_side': 'left'}
 ]
 
-measurements = [domain.get_measurement(device_name='Stua', data_type=types.temperature.name, module_name='Kjelleren'),
-                domain.get_measurement(device_name='Stua', data_type=types.humidity.name, module_name='Kjelleren')]
+measurements = [
+    domain.get_measurement(device_name=device, data_type=types.temperature.name, module_name=module),
+    domain.get_measurement(device_name=device, data_type=types.co2.name, module_name=module),
+    domain.get_measurement(device_name=device, data_type=types.humidity.name, module_name=module)
+]
 
 # Get timeseries from measurements:
 client = DtsClient('localhost:20001')
 tsv = TsVector([meas.time_series for meas in measurements])
 cal = Calendar('Europe/Oslo')
 now = utctime_now()
-period = UtcPeriod(now - cal.WEEK, now)
+period = UtcPeriod(now - cal.DAY, now)
 data = client.evaluate(tsv, period)
 
 
@@ -64,14 +67,36 @@ def get_xy(ts: TimeSeries) -> np.array:
 
 
 fig = figure(title='Static Plot', height=400, width=800, x_axis_type='datetime')
+fig.yaxis.visible = False
 fig.xaxis.formatter = DatetimeTickFormatter(
-    days=["%d/%m/%y %H:%M"],
-    months=["%d/%m/%y %H:%M"],
-    hours=["%d/%m/%y %H:%M"],
-    minutes=["%d/%m/%y %H:%M"]
+    days=["%d.%m.%y"],
+    months=["%d.%m.%y %H:%M"],
+    hours=["%d.%m.%y %H:%M"],
+    minutes=["%d.%m %H:%M"]
 )
-for ts, props in zip(data, plot_info):
-    fig.line(*get_xy(ts), color=props['color'], legend=props['type'].name)
+for variable in plot_info:
+    fig.extra_y_ranges[variable['type'].name_lower] = Range1d()
+    fig.add_layout(
+        obj=LinearAxis(
+            y_range_name=variable['type'].name_lower,
+            axis_label=f'{variable["type"].name} [{variable["type"].unit}]',
+            major_label_text_color=variable['color'],
+            major_tick_line_color=variable['color'],
+            minor_tick_line_color=variable['color'],
+            axis_line_color=variable['color'],
+            axis_label_text_color=variable['color']
+        ),
+        place=variable["axis_side"]
+    )
 
-output_file(NamedTemporaryFile(suffix='.html').name)
+for ts, variable in zip(data, plot_info):
+    x, y = get_xy(ts)
+    fig.line(x=x, y=y,
+             color=variable['color'],
+             legend=variable['type'].name,
+             y_range_name=variable['type'].name_lower)
+    fig.extra_y_ranges[variable['type'].name_lower].start = min(y)-0.1*(max(y)-min(y))
+    fig.extra_y_ranges[variable['type'].name_lower].end = max(y)+0.1*(max(y)-min(y))
+
+output_file(NamedTemporaryFile(prefix='netatmo_demo_plot_', suffix='.html').name)
 show(fig)
