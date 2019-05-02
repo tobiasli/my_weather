@@ -9,7 +9,6 @@ from weather.interfaces.data_collection_repository import DataCollectionReposito
 from weather.data_collection.netatmo import NetatmoRepository
 from weather.test.utilities import MockRepository1, MockRepository2  # Used for tests.
 from weather.utilities.create_ts import create_ts
-from weather.utilities import tregex
 import numpy as np
 import logging
 import urllib

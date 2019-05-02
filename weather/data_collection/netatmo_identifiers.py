@@ -1,10 +1,12 @@
 """Methods used for building and parsing urls used for read and find callbacks."""
 from typing import List, Dict, Tuple
 import urllib
-from weather.utilities import tregex
+import tregex
 
 REPO_IDENTIFIER = 'netatmo'
 PARAMETERS = {'device_name', 'module_name', 'data_type'}
+
+query_pattern = tregex.TregexCompiled(r'(\w+)=(.*?)(?:&|$)')
 
 
 class NetatmoUrlParseError(Exception):
@@ -25,10 +27,7 @@ def parse_ts_id(*, ts_id: str) -> Dict[str, str]:
         raise NetatmoUrlParseError(f'ts_id scheme does not match repository name: '
                                    f'ts_id={parse.scheme}, repo={REPO_IDENTIFIER}')
 
-    match: List[Tuple[str, str]] = tregex.to_tuple(
-        r'(\w+)=(.*?)(?:&|$)',
-        parse.query
-    )
+    match: List[Tuple[str, str]] = query_pattern.to_tuple(parse.query)
     if not all(m[0] in PARAMETERS for m in match):
         raise NetatmoUrlParseError(f'ts_id url does not contain the correct parameters: {PARAMETERS}')
     return dict(match)
