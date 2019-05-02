@@ -28,21 +28,22 @@ from netatmo_config import login
 domain = NetatmoDomain(**login)
 device = 'Stua'
 module = ''
-plot_info = [
-    {'type': types.temperature, 'color': 'crimson', 'axis_side': 'left'},
-    {'type': types.co2, 'color': 'black', 'axis_side': 'right'},
-    {'type': types.humidity, 'color': 'forestgreen', 'axis_side': 'left'}
+plot_data = [
+    {'data': domain.get_measurement(device_name=device, data_type=types.temperature.name, module_name=module),
+     'color': '#E64C3E'},  # red
+    {'data': domain.get_measurement(device_name=device, data_type=types.co2.name, module_name=module),
+     'color': '#B0CA55'},  # green
+    {'data': domain.get_measurement(device_name=device, data_type=types.humidity.name, module_name=module),
+     'color': '#0F2933'},  # dark green
 ]
-
-measurements = [
-    domain.get_measurement(device_name=device, data_type=types.temperature.name, module_name=module),
-    domain.get_measurement(device_name=device, data_type=types.co2.name, module_name=module),
-    domain.get_measurement(device_name=device, data_type=types.humidity.name, module_name=module)
-]
+# ('Pressure', 'mbar', point_fx.POINT_INSTANT_VALUE, '#33120F'),  # brown
+# ('Noise', 'db', point_fx.POINT_INSTANT_VALUE, '#E39C30'),  # yellow
+# ('Rain', 'mm', point_fx.POINT_INSTANT_VALUE, '#448098'),  # light blue
+# ('WindStrength', 'km / h', point_fx.POINT_INSTANT_VALUE, '#8816AB'),  # purple
 
 # Get timeseries from measurements:
 client = DtsClient('localhost:20001')
-tsv = TsVector([meas.time_series for meas in measurements])
+tsv = TsVector([meas['data'].time_series for meas in plot_data])
 cal = Calendar('Europe/Oslo')
 now = utctime_now()
 period = UtcPeriod(now - cal.DAY, now)
@@ -66,37 +67,40 @@ def get_xy(ts: TimeSeries) -> np.array:
         return np.array(time), np.array(values)
 
 
-fig = figure(title='Static Plot', height=400, width=800, x_axis_type='datetime')
+fig = figure(title=f'Demo plot {cal.to_string(now)}', height=400, width=800, x_axis_type='datetime')
 fig.yaxis.visible = False
 fig.xaxis.formatter = DatetimeTickFormatter(
-    days=["%d.%m.%y"],
-    months=["%d.%m.%y %H:%M"],
-    hours=["%d.%m.%y %H:%M"],
-    minutes=["%d.%m %H:%M"]
+    months=["%Y %b"],
+    days=["%F %H:%M"],
+    hours=["%a %H:%M"],
+    minutes=["%H:%M"]
 )
-for variable in plot_info:
-    fig.extra_y_ranges[variable['type'].name_lower] = Range1d()
+axis_switch = ['left', 'right']
+for variable in plot_data:
+    axis_side = axis_switch[0]
+    axis_switch.reverse()
+    fig.extra_y_ranges[variable['data'].data_type.name_lower] = Range1d()
     fig.add_layout(
         obj=LinearAxis(
-            y_range_name=variable['type'].name_lower,
-            axis_label=f'{variable["type"].name} [{variable["type"].unit}]',
+            y_range_name=variable['data'].data_type.name_lower,
+            axis_label=f"{variable['data'].data_type.name} [{variable['data'].data_type.unit}]",
             major_label_text_color=variable['color'],
             major_tick_line_color=variable['color'],
             minor_tick_line_color=variable['color'],
             axis_line_color=variable['color'],
             axis_label_text_color=variable['color']
         ),
-        place=variable["axis_side"]
+        place=axis_side
     )
 
-for ts, variable in zip(data, plot_info):
+for ts, variable in zip(data, plot_data):
     x, y = get_xy(ts)
     fig.line(x=x, y=y,
              color=variable['color'],
-             legend=variable['type'].name,
-             y_range_name=variable['type'].name_lower)
-    fig.extra_y_ranges[variable['type'].name_lower].start = min(y)-0.1*(max(y)-min(y))
-    fig.extra_y_ranges[variable['type'].name_lower].end = max(y)+0.1*(max(y)-min(y))
+             legend=variable['data'].data_type.name,
+             y_range_name=variable['data'].data_type.name_lower)
+    fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - 0.1 * (max(y) - min(y))
+    fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + 0.1 * (max(y) - min(y))
 
 output_file(NamedTemporaryFile(prefix='netatmo_demo_plot_', suffix='.html').name)
 show(fig)
