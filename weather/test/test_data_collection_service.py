@@ -70,22 +70,3 @@ def test_read_and_store(dtss):
 
     finally:
         dtss.stop()
-
-import threading
-import time
-
-def test_thread():
-
-    def something():
-        t = threading.current_thread()
-        while getattr(t, 'continue_loop'):
-            print('hello')
-            time.sleep(0.25)
-        print('done')
-
-    t = threading.Thread(target=something)
-    t.continue_loop = True
-
-    t.start()
-    time.sleep(2)
-    t.continue_loop = False

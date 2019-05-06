@@ -148,7 +148,7 @@ class ServiceLoop:
                 try:
                     perform_store(store_data=read_data)
                     logging.info(
-                        f'DataCollectionService {self.service_name}: Read and store complete for {self.read_period.period}.')
+                        f'DataCollectionService {self.service_name}: Read and store complete for {len(read_data)} timeseries.')
                 except Exception as e:
                     logging.error(self._log_msg(f'Store to store_client failed with exception: {e}'))
 

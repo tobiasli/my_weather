@@ -92,7 +92,7 @@ class DtssHost:
         else:
             self.dtss = self.make_server()
             self.dtss.start_async()
-            logging.info(f'DtsServer start at {self.address}. Repositories: {[repo for repo in self.repos]}')
+            logging.info(f'DtssHost start at {self.address}. Repositories: {[repo for repo in self.repos]}')
 
         try:
             # Verify that server is running:
@@ -100,23 +100,23 @@ class DtssHost:
             response = c.find(create_heartbeat_request('startup verification'))
             del c
             if not response:
-                raise DtssHostError('DtssServer is not responding to expected calls.')
+                raise DtssHostError('DtssHost is not responding to expected calls.')
         except DtssHostError:
             self.stop()
 
     def stop(self) -> None:
-        """Stop the DtsServer service running at port self.dtss_port_num."""
+        """Stop the DtssHost service running at port self.dtss_port_num."""
         if not self.dtss:
             logging.info('DtssHost attempted to stop a server that isn''t running.')
         else:
-            logging.info(f'DtsServer stop at port {self.dtss_port_num}.')
+            logging.info(f'DtssHost stop at port {self.dtss_port_num}.')
             self.dtss.clear()
             del self.dtss
             self.dtss = None
 
     @property
     def address(self) -> str:
-        """Return the full service address of the DtsServer."""
+        """Return the full service address of the DtssHost."""
         return f'localhost:{self.dtss_port_num}'
         # return f'{socket.gethostname()}:{self.dtss_port_num}'
 
@@ -132,7 +132,7 @@ class DtssHost:
         Returns:
             A TsVector containing the resulting timeseries containing data enough to cover the query period.
         """
-        logging.info(f'DtsServer received read_callback for {len(ts_ids)} ts_ids for period {read_period}.')
+        logging.info(f'DtssHost received read_callback for {len(ts_ids)} ts_ids for period {read_period}.')
 
         data = dict()  # Group ts_ids by repo.name (scheme).
         for enum, ts_id in enumerate(ts_ids):
