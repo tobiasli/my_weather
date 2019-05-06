@@ -3,15 +3,20 @@ me poll timeseries data either directly from the source (Netatmo API) or from th
 the Dtss. This lets gives me local storage of the data that can be queried freely."""
 
 from typing import Dict, Any, Sequence, List, Tuple
+import logging
+import urllib
+import os
+
+import numpy as np
 from shyft.api import (DtsServer, DtsClient, StringVector, TsVector, UtcPeriod, TsInfoVector, POINT_INSTANT_VALUE, TsInfo,
                        TimeSeries)
+
 from weather.interfaces.data_collection_repository import DataCollectionRepository
 from weather.data_collection.netatmo import NetatmoRepository
 from weather.test.utilities import MockRepository1, MockRepository2  # Used for tests.
 from weather.utilities.create_ts import create_ts
-import numpy as np
-import logging
-import urllib
+
+
 
 ConfigType = Dict[str, object]
 
@@ -72,7 +77,11 @@ class DtssHost:
         # dtss.set_auto_cache(True)
         dtss.cb = self.read_callback
         dtss.find_cb = self.find_callback
-        # dtss.store_ts_cb = self.dtss_store_callback
+
+        # Set all container directories, with container names matching folders in container directory:
+        # TODO: Auto-create container folders for each configured repository if they are not present.
+        for container in os.listdir(self.container_directory):
+            dtss.set_container(container, os.path.join(self.container_directory, container))
 
         return dtss
 
@@ -82,8 +91,8 @@ class DtssHost:
             logging.info('Attempted to start a server that is already running.')
         else:
             self.dtss = self.make_server()
-            logging.info(f'DtsServer start at {self.address}. Repositories: {[repo for repo in self.repos]}')
             self.dtss.start_async()
+            logging.info(f'DtsServer start at {self.address}. Repositories: {[repo for repo in self.repos]}')
 
         try:
             # Verify that server is running:
@@ -202,7 +211,7 @@ class HeartbeatRepository(DataCollectionRepository):
         Returns:
             A TsVector containing the resulting timeseries containing data enough to cover the query period.
         """
-        logging.info(f'DtssHost Heartbeat received read_callback on DtsServer at: {self.host.address}.')
+        logging.info(f'DtssHost Heartbeat read_callback at {self.host.address}.')
         tsv = TsVector()
         for _ in ts_ids:
             tsv.append(create_ts(read_period=read_period, value=1))
@@ -231,7 +240,7 @@ class HeartbeatRepository(DataCollectionRepository):
             A sequence of results matching the query.
         """
         message = parse_heartbeat(query=query)
-        logging.info(f'DtssHost Heartbeat received callback {message} on DtsServer at: {self.host.address}.')
+        logging.info(f'DtssHost Heartbeat find_callback at {self.host.address}: {message}')
         # noinspection PyArgumentList
         tsi = TsInfo(
             name=f'heartbeat: {message}',

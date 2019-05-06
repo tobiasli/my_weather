@@ -3,7 +3,7 @@ import os
 import sys
 import socket
 import time
-from weather.service.dtss import DtssHost, create_heartbeat_request
+from weather.service.dtss_host import DtssHost, create_heartbeat_request
 from shyft.api import DtsClient
 
 # Get configs from config directory:
@@ -20,18 +20,20 @@ DTSS_CONFIG = configs[socket.gethostname()]
 # Initialize DtssHost:
 host = DtssHost(**DTSS_CONFIG)
 
+heartbeat_interval = 3600
+
 if __name__ == '__main__':
     # Start DtssHost:
     host.start()
 
-    # Stay alive loop, with heartbeat every minute.
+    # Stay alive loop, with heartbeat at regular intervals.
     try:
         client = DtsClient(host.address)
         while True:
-            a = client.find(create_heartbeat_request('start_dtss.py'))
+            a = client.find(create_heartbeat_request(f'Startup script check every {heartbeat_interval} s'))
             if not a:
                 break
-            time.sleep(3600)
+            time.sleep(heartbeat_interval)
     finally:
         del client
         host.stop()
