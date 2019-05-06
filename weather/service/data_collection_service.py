@@ -39,7 +39,7 @@ to a set of ts_ids, timespans and intervals."""
 
     def __init__(self, service_name: str,
                  read_dtss_address: str,
-                 read_ts_ids: Sequence[str],
+                 read_ts: Sequence[str],
                  read_period: DataCollectionPeriod,
                  store_dtss_address: str,
                  store_ts_ids: Sequence[str]
@@ -57,7 +57,7 @@ to a set of ts_ids, timespans and intervals."""
         """
         self.service_name = service_name
         self.read_dtss_address = read_dtss_address
-        self.read_ts_ids = read_ts_ids
+        self.read_ts = read_ts
         self.read_period = read_period
         self.store_dtss_address = store_dtss_address
         self.store_ts_ids = store_ts_ids
@@ -73,7 +73,7 @@ to a set of ts_ids, timespans and intervals."""
         self.service_thread = threading.Thread(name=self.service_name,
                                                target=ServiceLoop(service_name=self.service_name,
                                                                   read_client=self.read_client,
-                                                                  read_ts_ids=self.read_ts_ids,
+                                                                  read_ts=self.read_ts,
                                                                   read_period=self.read_period,
                                                                   store_client=self.store_client,
                                                                   store_ts_ids=self.store_ts_ids))
@@ -92,7 +92,7 @@ class ServiceLoop:
     def __init__(self,
                  service_name: str,
                  read_client: st.DtsClient,
-                 read_ts_ids: Sequence[str],
+                 read_ts: Sequence[st.TimeSeries],
                  read_period: DataCollectionPeriod,
                  store_client: st.DtsClient,
                  store_ts_ids: Sequence[str], ) -> None:
@@ -102,14 +102,15 @@ class ServiceLoop:
         Args:
             service_name: The name of the service, so it can be identified in logs.
             read_client: The address of the DtssHost service you want to read data from.
-            read_ts_ids: A list of strings identifying timeseries in the read_dtss_address.
+            read_ts: A list of timeseries found in the read_dtss_address.
             read_period: The relative period we want to read data from.
             store_client: The address of the DtssHost service you want to store the data in.
-            store_ts_ids: A list of strings that we want to store the timeseries as in the store DtssHost.
+            store_ts_ids: A list of strings identifying how we want to represent the timeseries as in the
+                            DtssHost store.
         """
         self.service_name = service_name
         self.read_client = read_client
-        self.read_ts_ids = read_ts_ids
+        self.read_ts = read_ts
         self.read_period = read_period
         self.store_client = store_client
         self.store_ts_ids = store_ts_ids
@@ -123,7 +124,7 @@ class ServiceLoop:
 
         def perform_read() -> st.TsVector:
             """Perform a read query that returns a ts_vector with the queried data."""
-            return self.read_client.evaluate(st.TsVector([st.TimeSeries(ts_id) for ts_id in self.read_ts_ids]),
+            return self.read_client.evaluate(st.TsVector(self.read_ts),
                                              self.read_period.period())
 
         def perform_store(store_data: st.TsVector) -> None:

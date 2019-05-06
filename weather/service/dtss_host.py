@@ -2,7 +2,7 @@
 me poll timeseries data either directly from the source (Netatmo API) or from the containers (local cache) available to
 the Dtss. This lets gives me local storage of the data that can be queried freely."""
 
-from typing import Dict, Any, Sequence, List, Tuple
+from typing import Dict, Any, Sequence
 import logging
 import urllib
 import os
@@ -12,7 +12,7 @@ from shyft.api import (DtsServer, DtsClient, StringVector, TsVector, UtcPeriod, 
                        TimeSeries)
 
 from weather.interfaces.data_collection_repository import DataCollectionRepository
-from weather.data_collection.netatmo import NetatmoRepository
+from weather.data_sources.netatmo.netatmo import NetatmoRepository
 from weather.test.utilities import MockRepository1, MockRepository2  # Used for tests.
 from weather.utilities.create_ts import create_ts
 
@@ -78,10 +78,17 @@ class DtssHost:
         dtss.cb = self.read_callback
         dtss.find_cb = self.find_callback
 
-        # Set all container directories, with container names matching folders in container directory:
-        # TODO: Auto-create container folders for each configured repository if they are not present.
-        for container in os.listdir(self.container_directory):
-            dtss.set_container(container, os.path.join(self.container_directory, container))
+        # TimeSeries storage.
+        # Check if container directory exists, if not, create it.
+        if not os.path.exists(self.container_directory):
+            os.mkdir(self.container_directory)
+
+        # Check if repo containers exists, if not, create them, then add as containers.
+        for repo in self.repos:
+            repo_container = os.path.join(self.container_directory, repo)
+            if not os.path.exists(repo_container):
+                os.mkdir(repo_container)
+            dtss.set_container(repo, repo_container)
 
         return dtss
 

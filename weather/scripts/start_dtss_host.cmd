@@ -7,6 +7,6 @@ set PATH=%PATH%;%USERPROFILE%\Miniconda3\condabin;
 call conda activate shyft
 rem Add module path to pythonpath.
 set PYTHONPATH=%PATH%;%cd%
-call python weather\scripts\start_dtss.py
+call python weather\scripts\start_dtss_host.py
 endlocal
 pause

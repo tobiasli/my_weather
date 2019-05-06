@@ -7,6 +7,8 @@ import time
 import logging
 from contextlib import closing
 
+import shyft.time_series as st
+
 from weather.service.dtss_host import DtssHost, DtsClient
 from weather.service.data_collection_service import DataCollectionPeriod, DataCollectionService
 # Get credentials:
@@ -46,16 +48,15 @@ def dtss() -> DtssHost:
 
 
 def test_read_and_store(dtss):
-    os.mkdir(os.path.join(dtss.container_directory, 'test'))  # Create container for test data.
     dtss.start()
     try:
         collection = DataCollectionService(
             service_name='coll_test_serv',
             read_dtss_address=dtss.address,
-            read_ts_ids=['mock1://test/1'],
+            read_ts=[st.TimeSeries('mock1://test/1'), st.TimeSeries('mock2://test/24')],  # Ask for data from two different repositories.
             read_period=DataCollectionPeriod(start_offset=3600*2, end_offset=60*10, wait_time=0.5),
             store_dtss_address=dtss.address,
-            store_ts_ids=['shyft://test/1'])
+            store_ts_ids=['shyft://mock1/1/1', 'shyft://mock2/2/24'])
         collection.start()
 
         # Wait for an amount of time. Should complete 4 calls.
@@ -65,8 +66,10 @@ def test_read_and_store(dtss):
 
         # Verify that TimeSeries now exists in dtss.store:
         client = DtsClient(dtss.address)
-        tsi = client.find('shyft://test/\d')
-        assert len(tsi) == 1
+        tsiv = client.find(r'shyft://mock1/\d/\d+')
+        assert len(tsiv) == 1
+        tsiv = client.find(r'shyft://mock2/\d/\d+')
+        assert len(tsiv) == 1
 
     finally:
         dtss.stop()

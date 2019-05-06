@@ -1,5 +1,5 @@
 """Tests for the netadmo domain classes."""
-from weather.data_collection.netatmo_domain import NetatmoDomain, NetatmoDevice
+from weather.data_sources.netatmo.netatmo_domain import NetatmoDomain, NetatmoDevice
 from weather.test.bin.netatmo_test_data import MOCK_STATION_CONFIG
 import os
 import sys

@@ -1,6 +1,6 @@
 """Definitions of what we can expect of information from a Netatmo configuration."""
 from weather.utilities import data_class, camel_converter
-from weather.data_collection.netatmo_identifiers import create_ts_id, create_ts_query
+from weather.data_sources.netatmo.netatmo_identifiers import create_ts_id, create_ts_query, create_ts_store_id
 from typing import List, Union, Iterable, Dict, Any
 from shyft.api import time, Calendar, point_interpretation_policy as point_fx, TimeSeries
 import lnetatmo
@@ -112,7 +112,9 @@ class NetatmoMeasurement:
     @property
     def ts_id(self) -> str:
         """Create the proper ts_id for the measurement."""
-        return create_ts_id(device_name=self.device_name, module_name=self.module_name, data_type=self.data_type.name)
+        return create_ts_id(device_name=self.device_name,
+                            module_name=self.module_name,
+                            data_type=self.data_type.name)
 
     @property
     def ts_query(self) -> str:
@@ -124,6 +126,13 @@ class NetatmoMeasurement:
     def time_series(self) -> TimeSeries:
         """Return a TimeSeries representation of measurement."""
         return TimeSeries(self.ts_id)
+
+    @property
+    def ts_store_id(self) -> str:
+        """ts_id used to identify the timeseries when stored in a DtssHost."""
+        return create_ts_store_id(device_name=self.device_name,
+                                  module_name=self.module_name,
+                                  data_type=self.data_type.name)
 
 
 _measurements = [
@@ -258,10 +267,10 @@ class NetatmoDomain:
         ]
 
         self.data_source_dict: Dict[str, NetatmoModule] = {}
-        data_sources: List[NetatmoModule] = [
+        self.data_source_list: List[NetatmoModule] = [
                                     module for device in self.devices for module in device.modules
                                             ] + self.devices
-        for data_source in data_sources:
+        for data_source in self.data_source_list:
             if data_source.name in self.data_source_dict:
                 raise NetatmoDomainError('NetatmoDomain does currently only support modules/devices with unique names. '
                                          f'In the current configuration, you have two modules named {data_source.name}')

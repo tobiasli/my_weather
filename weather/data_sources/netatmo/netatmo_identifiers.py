@@ -14,6 +14,14 @@ class NetatmoUrlParseError(Exception):
     pass
 
 
+def create_ts_store_id(*, device_name: str, data_type: str, module_name: str = '') -> str:
+    """Create a valid ts url from a netatmo device_name, module_name and data_type to identify a timeseries in the store
+    of a DtssHost. If measurement resides in a NetatmoDevice, module can be left blank."""
+    if module_name:
+        module_name = module_name + '/'
+    return f'shyft://{REPO_IDENTIFIER}/{device_name}/{module_name}{data_type}'
+
+
 def create_ts_id(*, device_name: str, data_type: str, module_name: str = '') -> str:
     """Create a valid ts url from a netatmo device_name, module_name and data_type to identify a timeseries. If
     measurement resides in a NetatmoDevice, module can be left blank."""
