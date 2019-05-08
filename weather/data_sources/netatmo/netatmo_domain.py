@@ -123,7 +123,7 @@ class NetatmoMeasurement:
                                data_type=self.data_type.name)
 
     @property
-    def time_series(self) -> TimeSeries:
+    def time_series_raw(self) -> TimeSeries:
         """Return a TimeSeries representation of measurement."""
         return TimeSeries(self.ts_id)
 
@@ -133,6 +133,11 @@ class NetatmoMeasurement:
         return create_ts_store_id(device_name=self.device_name,
                                   module_name=self.module_name,
                                   data_type=self.data_type.name)
+
+    @property
+    def time_series(self) -> TimeSeries:
+        """Return a TimeSeries representation of measurement."""
+        return TimeSeries(self.ts_store_id)
 
 
 _measurements = [

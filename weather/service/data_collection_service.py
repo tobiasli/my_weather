@@ -1,6 +1,6 @@
 """A DataCollectionService is a service that communicates with a DtssHost and stores data to the DtssHost according
 to a set of ts_ids, timespans and intervals."""
-from typing import Sequence, Union, Optional
+from typing import Sequence, Union, Optional, List
 import logging
 import time
 import threading
@@ -9,6 +9,11 @@ import shyft.time_series as st
 
 Number = Union[float, int]
 TimeType = Union[st.time, Number]
+
+
+class DataCollectionServiceError(Exception):
+    """Errors raised by a DataCollectionService."""
+    pass
 
 
 class DataCollectionPeriod:
@@ -79,6 +84,7 @@ to a set of ts_ids, timespans and intervals."""
                                                                   store_ts_ids=self.store_ts_ids))
         self.service_thread.continue_loop = True
         self.service_thread.start()
+        logging.info(f'DataCollectionService {self.service_name} has started.')
 
     def stop(self) -> None:
         """Stop the DataCollectionService after current thread operation is done."""
@@ -156,3 +162,33 @@ class ServiceLoop:
             time.sleep(self.read_period.wait_time)
 
         logging.info(self._log_msg('_service_loop has stopped.'))
+
+
+class DataCollectionServiceSet:
+    """A group of DataCollectionServices for batch start-stop."""
+    services: List[DataCollectionService] = None
+
+    def add_service(self, service: DataCollectionService) -> None:
+        """Add a service to the Service List."""
+
+        if not self.services:
+            self.services = []
+
+        self.services.append(service)
+
+    def start(self) -> None:
+        """Start all services in self.services."""
+        if not self.services:
+            raise DataCollectionServiceError(
+                'No DataCollectionServices added to DataCollectionServiceSet. Nothing to start.')
+
+        for service in self.services:
+            service.start()
+
+    def stop(self) -> None:
+        """Stop all services in self.services."""
+        if not self.services:
+            raise DataCollectionServiceError(
+                'No DataCollectionServices added to DataCollectionServiceSet. Nothing to stop.')
+        for service in self.services:
+            service.stop()
