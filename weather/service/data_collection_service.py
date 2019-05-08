@@ -182,6 +182,8 @@ class DataCollectionServiceSet:
             raise DataCollectionServiceError(
                 'No DataCollectionServices added to DataCollectionServiceSet. Nothing to start.')
 
+        logging.info(
+            f'DataCollectionServiceSet: Starting services {", ".join([serv.service_name for serv in self.services])}')
         for service in self.services:
             service.start()
 
@@ -190,5 +192,7 @@ class DataCollectionServiceSet:
         if not self.services:
             raise DataCollectionServiceError(
                 'No DataCollectionServices added to DataCollectionServiceSet. Nothing to stop.')
+        logging.info(f'DataCollectionServiceSet: Stopping services {", ".join([serv.service_name for serv in self.services])}')
         for service in self.services:
             service.stop()
+

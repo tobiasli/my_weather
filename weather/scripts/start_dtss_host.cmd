@@ -1,5 +1,6 @@
 rem This script starts a DtssHost on the current machine. cwd must be the containing folder of this script.
 rem start_dtss.py assumes that env.var. CONFIG_DIRECTORY contains a path containing configs for current machine.
+echo off
 setlocal
 cd ../..
 echo %cd%

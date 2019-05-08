@@ -63,8 +63,6 @@ services.add_service(DataCollectionService(service_name='netatmo_long',
                                            ))
 
 services.start()
-logging.info('Services started')
-print('Services started')
 try:
     time.sleep(24 * 3600 * 3)
 finally:
