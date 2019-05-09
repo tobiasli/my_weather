@@ -9,6 +9,7 @@ import logging
 from weather.service.data_collection_service import DataCollectionService, DataCollectionPeriod, \
     DataCollectionServiceSet
 from weather.data_sources.netatmo import get_netatmo_domain
+from weather.data_sources.netatmo.netatmo_identifiers import create_ts_netatmo
 
 # Get configs from config directory:
 if not 'CONFIG_DIRECTORY' in os.environ:
@@ -34,8 +35,8 @@ domain = get_netatmo_domain()
 
 # Get all timeseries:
 measurements = [measurement for source in domain.data_source_list for measurement in source.measurements]
-read_timeseries = [measurement.time_series for measurement in measurements]
-store_timeseries = [measurement.ts_store_id for measurement in measurements]
+read_timeseries = [create_ts_netatmo(measurement) for measurement in measurements]
+store_ts_ids = [measurement.ts_id for measurement in measurements]
 
 # Initialize DataCollectionServices:
 services = DataCollectionServiceSet()
@@ -50,7 +51,7 @@ services.add_service(DataCollectionService(service_name='netatmo_short',
                                                start_offset=24 * 3600 * 2,  # Two days.
                                                wait_time=30),  # Every 30 seconds
                                            store_dtss_address=read_dtss_address,
-                                           store_ts_ids=store_timeseries
+                                           store_ts_ids=store_ts_ids
                                            ))
 services.add_service(DataCollectionService(service_name='netatmo_long',
                                            read_dtss_address=read_dtss_address,
@@ -59,7 +60,7 @@ services.add_service(DataCollectionService(service_name='netatmo_long',
                                                start_offset=365*24*3600,  # One year.
                                                wait_time=24*3600),  # Every day.
                                            store_dtss_address=read_dtss_address,
-                                           store_ts_ids=store_timeseries
+                                           store_ts_ids=store_ts_ids
                                            ))
 
 services.start()
