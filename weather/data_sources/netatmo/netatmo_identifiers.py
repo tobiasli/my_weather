@@ -2,6 +2,7 @@
 from typing import List, Dict, Tuple
 import urllib
 import tregex
+import shyft.time_series as st
 
 REPO_IDENTIFIER = 'netatmo'
 PARAMETERS = {'device_name', 'module_name', 'data_type'}
@@ -12,6 +13,20 @@ query_pattern = tregex.TregexCompiled(r'(\w+)=(.*?)(?:&|$)')
 class NetatmoUrlParseError(Exception):
     """Errors raised by the Netatmo url parsers."""
     pass
+
+
+def create_ts_store(measurement: "NetatmoMeasurement") -> st.TimeSeries:
+    """From a NetatmoMeasurement, create a st.TimeSeries referencing DtssHost storage data."""
+    return st.TimeSeries(create_ts_store_id(device_name=measurement.device_name,
+                                            module_name=measurement.module_name,
+                                            data_type=measurement.data_type.name))
+
+
+def create_ts_netatmo(measurement: "NetatmoMeasurement") -> st.TimeSeries:
+    """From a NetatmoMeasurement, create a st.TimeSeries referencing Netatmo API data."""
+    return st.TimeSeries(create_ts_id(device_name=measurement.device_name,
+                                      module_name=measurement.module_name,
+                                      data_type=measurement.data_type.name))
 
 
 def create_ts_store_id(*, device_name: str, data_type: str, module_name: str = '') -> str:

@@ -1,5 +1,6 @@
 """Tests for the netadmo domain classes."""
 from weather.data_sources.netatmo.netatmo_domain import NetatmoDomain, NetatmoDevice
+from weather.data_sources.netatmo import get_netatmo_domain
 from weather.test.bin.netatmo_test_data import MOCK_STATION_CONFIG
 import os
 import sys
@@ -37,6 +38,7 @@ def test_domain_login_mock():
 
 
 def test_domain_login():
-    domain = NetatmoDomain(**login)
+    domain = get_netatmo_domain()
+    assert domain
 
 

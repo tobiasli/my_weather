@@ -1,6 +1,6 @@
 """Definitions of what we can expect of information from a Netatmo configuration."""
 from weather.utilities import data_class, camel_converter
-from weather.data_sources.netatmo.netatmo_identifiers import create_ts_id, create_ts_query, create_ts_store_id
+from weather.data_sources.netatmo.netatmo_identifiers import create_ts_query, create_ts_store_id
 from typing import List, Union, Iterable, Dict, Any
 from shyft.api import time, Calendar, point_interpretation_policy as point_fx, TimeSeries
 import lnetatmo
@@ -112,7 +112,7 @@ class NetatmoMeasurement:
     @property
     def ts_id(self) -> str:
         """Create the proper ts_id for the measurement."""
-        return create_ts_id(device_name=self.device_name,
+        return create_ts_store_id(device_name=self.device_name,
                             module_name=self.module_name,
                             data_type=self.data_type.name)
 
@@ -123,21 +123,9 @@ class NetatmoMeasurement:
                                data_type=self.data_type.name)
 
     @property
-    def time_series_raw(self) -> TimeSeries:
-        """Return a TimeSeries representation of measurement."""
-        return TimeSeries(self.ts_id)
-
-    @property
-    def ts_store_id(self) -> str:
-        """ts_id used to identify the timeseries when stored in a DtssHost."""
-        return create_ts_store_id(device_name=self.device_name,
-                                  module_name=self.module_name,
-                                  data_type=self.data_type.name)
-
-    @property
     def time_series(self) -> TimeSeries:
         """Return a TimeSeries representation of measurement."""
-        return TimeSeries(self.ts_store_id)
+        return TimeSeries(self.ts_id)
 
 
 _measurements = [
