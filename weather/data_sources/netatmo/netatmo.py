@@ -95,8 +95,8 @@ class NetatmoRepository(DataCollectionRepository):
             A TsVector with timeseries containing data for each measurement type, in the order of the input.
         """
 
-        date_start = utc_period.start if utc_period else None
-        date_end = utc_period.end if utc_period else None
+        date_start = float(utc_period.start if utc_period else None)
+        date_end = float(utc_period.end if utc_period else None)
 
         self.wait_for_rate_limiters()
         self.add_action_timestamp_to_rate_limiters(utctime_now())
