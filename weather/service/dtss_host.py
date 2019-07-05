@@ -36,7 +36,7 @@ class DtssHostError(Exception):
     pass
 
 
-class DtssHost(ServiceBaseClass):
+class DtssHost:
     """DtssHost is a data service that accepts queries for TimeSeries data using url identifiers and UtcPeriods.
     The service handles calls both for source systems (i.e. Netatmo api) and data calls directed to a local
     container hosting the same data for faster queries."""
