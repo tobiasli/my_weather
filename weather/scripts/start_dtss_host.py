@@ -20,7 +20,7 @@ DTSS_CONFIG = configs[socket.gethostname()]
 # Initialize DtssHost:
 host = DtssHost(**DTSS_CONFIG)
 
-heartbeat_interval = 3600
+heartbeat_interval = 60
 
 if __name__ == '__main__':
     # Start DtssHost:
@@ -30,9 +30,12 @@ if __name__ == '__main__':
     try:
         client = DtsClient(host.address)
         while True:
-            a = client.find(create_heartbeat_request(f'Startup script check every {heartbeat_interval} s'))
-            if not a:
-                break
+            response = client.find(create_heartbeat_request(f'Startup script check every {heartbeat_interval} s'))
+            if not response:
+                host.stop()
+                del host
+                host = DtssHost(**DTSS_CONFIG)
+                host.start()
             time.sleep(heartbeat_interval)
     finally:
         del client
