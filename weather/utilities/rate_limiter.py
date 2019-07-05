@@ -54,7 +54,7 @@ class RateLimiter:
                                 timespan=self.timespan)
 
     def check_next_rate(self) -> bool:
-        """Check if the next action (performed right now) would exceed the rate limit."""
+        """Check if a hypothetical next action (performed right now) would exceed the rate limit."""
 
         now = utctime_now()
         next_timestamps = list(self.action_timestamps)[1:]
@@ -87,6 +87,8 @@ class RateLimiter:
         """
 
         def rate_limited_func(*args, **kwargs):
+            """Function with a rate limiter that can not be called with a higher frequency than defined by the
+            RateLimiter class."""
             self.check_next_and_wait(func.__name__)
             self.perform_action()
             return func(*args, **kwargs)
