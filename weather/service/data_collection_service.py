@@ -44,7 +44,7 @@ to a set of ts_ids, timespans and intervals."""
 
     def __init__(self, service_name: str,
                  read_dtss_address: str,
-                 read_ts: Sequence[str],
+                 read_ts: Sequence[st.TimeSeries],
                  read_period: DataCollectionPeriod,
                  store_dtss_address: str,
                  store_ts_ids: Sequence[str]
@@ -55,7 +55,7 @@ to a set of ts_ids, timespans and intervals."""
         Args:
             service_name: The name of the service, so it can be identified in logs.
             read_dtss_address: The address of the DtssHost service you want to read data from.
-            read_ts_ids: A list of strings identifying timeseries in the read_dtss_address.
+            read_ts: A list of unbound timeseries that can be found in the read_client.
             read_period: The relative period we want to read data from.
             store_dtss_address: The address of the DtssHost service you want to store the data in.
             store_ts_ids: A list of strings that we want to store the timeseries as in the store DtssHost.
@@ -102,17 +102,17 @@ class ServiceLoop:
                  read_period: DataCollectionPeriod,
                  store_client: st.DtsClient,
                  store_ts_ids: Sequence[str], ) -> None:
-        """A DataCollectionService is a tool for regularly querying a dtss for data, and then storing the data in a
-        corresponding dtss using the store function.
+        """A DataCollectionService is a tool for regularly querying a DtsClient for data, and then storing the data in a
+        corresponding DtsClient using the store function.
 
         Args:
             service_name: The name of the service, so it can be identified in logs.
-            read_client: The address of the DtssHost service you want to read data from.
-            read_ts: A list of timeseries found in the read_dtss_address.
+            read_client: A DtsClient communicating with the DtsServer you want to fetch data from.
+            read_ts: A list of unbound timeseries that can be found in the read_client.
             read_period: The relative period we want to read data from.
-            store_client: The address of the DtssHost service you want to store the data in.
+            store_client: A DtsClient communicating with the DtsServer you want to store the data in.
             store_ts_ids: A list of strings identifying how we want to represent the timeseries as in the
-                            DtssHost store.
+                            store_client.
         """
         self.service_name = service_name
         self.read_client = read_client

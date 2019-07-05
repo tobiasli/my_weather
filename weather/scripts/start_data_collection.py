@@ -46,24 +46,28 @@ services = DataCollectionServiceSet()
 # Initialize netatmo collection:
 read_dtss_address = f'{socket.gethostname()}:{DTSS_CONFIG["dtss_port_num"]}'
 
-services.add_service(DataCollectionService(service_name='netatmo_short',
-                                           read_dtss_address=read_dtss_address,
-                                           read_ts=read_timeseries,
-                                           read_period=DataCollectionPeriod(
-                                               start_offset=24 * 3600 * 2,  # Two days.
-                                               wait_time=5*60),  # Every 5 minutes
-                                           store_dtss_address=read_dtss_address,
-                                           store_ts_ids=store_ts_ids
-                                           ))
-services.add_service(DataCollectionService(service_name='netatmo_long',
-                                           read_dtss_address=read_dtss_address,
-                                           read_ts=read_timeseries,
-                                           read_period=DataCollectionPeriod(
-                                               start_offset=365*24*3600,  # One year.
-                                               wait_time=24*3600),  # Every day.
-                                           store_dtss_address=read_dtss_address,
-                                           store_ts_ids=store_ts_ids
-                                           ))
+services.add_service(
+    DataCollectionService(
+        service_name='netatmo_short',
+        read_dtss_address=read_dtss_address,
+        read_ts=read_timeseries,
+        read_period=DataCollectionPeriod(
+            start_offset=24 * 3600 * 2,  # Two days.
+            wait_time=5 * 60),  # Every 5 minutes
+        store_dtss_address=read_dtss_address,
+        store_ts_ids=store_ts_ids
+    ))
+services.add_service(
+    DataCollectionService(
+        service_name='netatmo_long',
+        read_dtss_address=read_dtss_address,
+        read_ts=read_timeseries,
+        read_period=DataCollectionPeriod(
+            start_offset=365 * 24 * 3600,  # One year.
+            wait_time=24 * 3600),  # Every day.
+        store_dtss_address=read_dtss_address,
+        store_ts_ids=store_ts_ids
+    ))
 
 services.start()
 try:

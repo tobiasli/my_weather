@@ -15,6 +15,7 @@ from weather.interfaces.data_collection_repository import DataCollectionReposito
 from weather.data_sources.netatmo.netatmo import NetatmoRepository
 from weather.test.utilities import MockRepository1, MockRepository2  # Used for tests.
 from weather.utilities.create_ts import create_ts
+from weather.service.service_manager import ServiceBaseClass
 
 
 
@@ -35,7 +36,7 @@ class DtssHostError(Exception):
     pass
 
 
-class DtssHost:
+class DtssHost(ServiceBaseClass):
     """DtssHost is a data service that accepts queries for TimeSeries data using url identifiers and UtcPeriods.
     The service handles calls both for source systems (i.e. Netatmo api) and data calls directed to a local
     container hosting the same data for faster queries."""
@@ -53,6 +54,7 @@ class DtssHost:
             data_collection_repositories: The data collection repositories that we are able to collect data from.
             container_directory: The disk location where we look for and store timeseries.
         """
+
         self.dtss_port_num = dtss_port_num
 
         # Build a dictionary containing every available repository.
@@ -72,6 +74,7 @@ class DtssHost:
 
     def make_server(self) -> DtsServer:
         """Construct and configure our DtsServer."""
+        # noinspection PyArgumentList
         dtss = DtsServer()
         dtss.set_listening_port(self.dtss_port_num)
         # dtss.set_auto_cache(True)
@@ -98,6 +101,7 @@ class DtssHost:
             logging.info('Attempted to start a server that is already running.')
         else:
             self.dtss = self.make_server()
+            # noinspection PyArgumentList
             self.dtss.start_async()
             logging.info(f'DtssHost start at {self.address}. Repositories: {[repo for repo in self.repos]}')
 
@@ -219,6 +223,7 @@ class HeartbeatRepository(DataCollectionRepository):
             A TsVector containing the resulting timeseries containing data enough to cover the query period.
         """
         logging.info(f'DtssHost Heartbeat read_callback at {self.host.address}.')
+        # noinspection PyArgumentList
         tsv = TsVector()
         for _ in ts_ids:
             tsv.append(create_ts(read_period=read_period, value=1))
