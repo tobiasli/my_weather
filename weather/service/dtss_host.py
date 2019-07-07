@@ -54,6 +54,7 @@ class DtssHost:
 
         self.data_collection_repositories = data_collection_repositories
         self.repos = None
+        self.make_repos()
         self.container_directory = container_directory
 
         # Initialize and configure server:
@@ -99,7 +100,6 @@ class DtssHost:
         if self.dtss:
             logging.info('Attempted to start a server that is already running.')
         else:
-            self.make_repos()
             self.dtss = self.make_server()
             # noinspection PyArgumentList
             self.dtss.start_async()
