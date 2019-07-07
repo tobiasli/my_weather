@@ -10,7 +10,9 @@ from contextlib import closing
 import shyft.time_series as st
 
 from weather.service.dtss_host import DtssHost, DtsClient
-from weather.service.data_collection_service import DataCollectionPeriod, DataCollectionService
+from weather.service.data_collection_task import DataCollectionPeriod, DataCollectionTask
+from weather.service.service_manager import Service
+
 # Get credentials:
 if not 'CONFIG_DIRECTORY' in os.environ:
     raise EnvironmentError('Cannot find path to app authentication codes.')
@@ -50,19 +52,15 @@ def dtss() -> DtssHost:
 def test_read_and_store(dtss):
     dtss.start()
     try:
-        collection = DataCollectionService(
-            service_name='coll_test_serv',
+        collection = DataCollectionTask(
+            task_name='coll_test_serv',
             read_dtss_address=dtss.address,
             read_ts=[st.TimeSeries('mock1://test/1'), st.TimeSeries('mock2://test/24')],  # Ask for data from two different repositories.
             read_period=DataCollectionPeriod(start_offset=3600*2, end_offset=60*10, wait_time=0.5),
             store_dtss_address=dtss.address,
             store_ts_ids=['shyft://mock1/1/1', 'shyft://mock2/2/24'])
-        collection.start()
 
-        # Wait for an amount of time. Should complete 4 calls.
-        time.sleep(1)
-
-        collection.stop()
+        collection.collect_data()
 
         # Verify that TimeSeries now exists in dtss.store:
         client = DtsClient(dtss.address)

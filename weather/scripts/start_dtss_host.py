@@ -3,7 +3,9 @@ import os
 import sys
 import socket
 import time
-from weather.service.dtss_host import DtssHost, create_heartbeat_request
+from weather.service.dtss_host import DtssHost
+from weather.data_sources.heartbeat import create_heartbeat_request
+from weather.service.service_manager import Service, ServiceManager
 from shyft.api import DtsClient
 
 # Get configs from config directory:
@@ -17,26 +19,28 @@ if socket.gethostname() not in configs:
     raise Exception(f"Can't find configuration for machine {socket.gethostname()}")
 DTSS_CONFIG = configs[socket.gethostname()]
 
-# Initialize DtssHost:
-host = DtssHost(**DTSS_CONFIG)
-
 heartbeat_interval = 60
 
 if __name__ == '__main__':
-    # Start DtssHost:
+    # Initialize DtssHost:
+    host = DtssHost(**DTSS_CONFIG)
     host.start()
 
-    # Stay alive loop, with heartbeat at regular intervals.
+    # Create a ServiceManager to monitor the health of the Dtss every 30 minutes.
+    # health_check_action performs a dummy find-request and expects a non-empty response.
+    sm = ServiceManager(services=[
+        Service(name='dtss_maintainer',
+                health_check_action=
+                lambda: bool(DtsClient(host.address).find(create_heartbeat_request(f'Startup script check every {heartbeat_interval} s'))),
+                restart_action=host.restart
+                )], health_check_frequency=60*30)
+
+    sm.start_services()
     try:
-        client = DtsClient(host.address)
         while True:
-            response = client.find(create_heartbeat_request(f'Startup script check every {heartbeat_interval} s'))
-            if not response:
-                host.stop()
-                del host
-                host = DtssHost(**DTSS_CONFIG)
-                host.start()
-            time.sleep(heartbeat_interval)
+            time.sleep(5)
     finally:
-        del client
+        sm.stop_services()
         host.stop()
+        del host
+        del sm
