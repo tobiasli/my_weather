@@ -15,7 +15,6 @@ from weather.interfaces.data_collection_repository import DataCollectionReposito
 from weather.data_sources.netatmo.netatmo import NetatmoRepository
 from weather.test.utilities import MockRepository1, MockRepository2  # Used for tests.
 from weather.utilities.create_ts import create_ts
-from weather.service.service_manager import ServiceBaseClass
 
 
 
