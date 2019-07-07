@@ -1,11 +1,11 @@
 """A DataCollectionService is a service that communicates with a DtssHost and stores data to the DtssHost according
 to a set of ts_ids, timespans and intervals."""
-from typing import Sequence, Union, Optional, List
+from typing import Sequence, Union, Optional
 import logging
-import time
-import threading
 
 import shyft.time_series as st
+
+from weather.data_sources.heartbeat import create_heartbeat_request
 
 Number = Union[float, int]
 TimeType = Union[st.time, Number]
@@ -60,7 +60,7 @@ to a set of ts_ids, timespans and intervals."""
             store_dtss_address: The address of the DtssHost service you want to store the data in.
             store_ts_ids: A list of strings that we want to store the timeseries as in the store DtssHost.
         """
-        self.service_name = task_name
+        self.name = task_name
         self.read_dtss_address = read_dtss_address
         self.read_ts = read_ts
         self.read_period = read_period
@@ -68,7 +68,6 @@ to a set of ts_ids, timespans and intervals."""
         self.store_ts_ids = store_ts_ids
         self.read_client: st.DtsClient = None
         self.store_client: st.DtsClient = None
-        self.service_thread: threading.Thread = None
 
         self.restart_clients()
 
@@ -95,6 +94,14 @@ to a set of ts_ids, timespans and intervals."""
             )
         )
 
+    def health_check(self) -> bool:
+        """Simple query towards both read_client and store_client to verify integrity of DataCollectionTask."""
+        request = create_heartbeat_request(f'Health check from {self.name}')
+        try:
+            return self.read_client.find(request) and self.store_client.find(request)
+        except RuntimeError:
+            return False
+
     def collect_data(self) -> None:
         """Perform a data query and store if data is found."""
         read_data = None
@@ -107,6 +114,6 @@ to a set of ts_ids, timespans and intervals."""
             try:
                 self.perform_store(store_data=read_data)
                 logging.info(
-                    f'DataCollectionTask {self.service_name}: Read and store complete for {len(read_data)} timeseries.')
+                    f'DataCollectionTask {self.name}: Read and store complete for {len(read_data)} timeseries.')
             except Exception as e:
                 logging.error(f'Store to store_client failed with exception: {e}')

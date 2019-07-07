@@ -17,7 +17,7 @@ from bokeh.models import DatetimeTickFormatter, Range1d, LinearAxis
 import numpy as np
 
 from weather.data_sources.netatmo.netatmo_domain import NetatmoDomain, types
-from weather.service.dtss_host import create_heartbeat_request
+from weather.data_sources.heartbeat import create_heartbeat_request
 
 heartbeat = TimeSeries(create_heartbeat_request('static_plot'))
 

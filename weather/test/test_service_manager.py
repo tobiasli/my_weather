@@ -42,7 +42,7 @@ def test_service_manager():
     Manipulate the state and verify that state is not ok. Restart service and check
     that state is repaired."""
     task = TestTask('test_task')
-    sm = Service(name=task.name, task=task.perform, task_delay=0.1, health_check=task.health_check)
+    sm = Service(name=task.name, task=task.perform, task_interval=0.1, health_check_action=task.health_check)
     assert not sm.healthy()  # Task not started yet.
     sm.start()
     try:
@@ -56,9 +56,9 @@ def test_service_manager():
 
 def test_service_boss():
     task1 = TestTask('test_1')
-    serv1 = Service(name=task1.name, task=task1.perform, task_delay=1, health_check=task1.health_check, restart_action=task1.restart)
+    serv1 = Service(name=task1.name, task=task1.perform, task_interval=1, health_check_action=task1.health_check, restart_action=task1.restart)
     task2 = TestTask('test_2')
-    serv2 = Service(name=task2.name, task=task2.perform, task_delay=1, health_check=task2.health_check, restart_action=task2.restart)
+    serv2 = Service(name=task2.name, task=task2.perform, task_interval=1, health_check_action=task2.health_check, restart_action=task2.restart)
 
     sm = ServiceManager(services=[serv1, serv2], health_check_frequency=0.02)
     sm.start_services()

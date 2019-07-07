@@ -4,7 +4,8 @@ import os
 import sys
 import pytest
 from shyft.api import Calendar, UtcPeriod, StringVector, TsVector, DtsClient, TimeSeries
-from weather.service.dtss_host import DtssHost, create_heartbeat_request
+from weather.service.dtss_host import DtssHost
+from weather.data_sources.heartbeat import create_heartbeat_request
 import logging
 
 logging.basicConfig(
