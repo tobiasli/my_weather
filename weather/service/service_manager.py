@@ -107,19 +107,23 @@ class Maintainer:
 class ServiceManager:
     """Class for managing a set of services."""
 
-    def __init__(self, services: ty.Sequence[Service], health_check_frequency: Number) -> None:
+    def __init__(self, services: ty.Sequence[Service] = None, health_check_frequency: Number = 1) -> None:
         """Initiate a ServiceManager with a set of services to maintain.
 
         Args:
             services: The ServiceBaseClass classes to manage.
             health_check_frequency: Number of seconds between each health check.
         """
-        self.services = services
+        self.services = services if services else list()
         self.maintainer = Service(
             name='maintainer',
             task=self.check_service_health_and_restart,
             task_delay=health_check_frequency
         )
+
+    def add_service(self, service: Service) -> None:
+        """Add service to managed services."""
+        self.services.append(service)
 
     def check_service_health_and_restart(self) -> None:
         """Check the health of all services and restart if necessary."""

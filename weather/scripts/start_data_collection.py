@@ -8,7 +8,7 @@ import logging
 
 import shyft.time_series as st
 
-from weather.service.data_collection_service import DataCollectionService, DataCollectionPeriod, \
+from weather.service.data_collection_task import DataCollectionTask, DataCollectionPeriod, \
     DataCollectionServiceSet
 from weather.data_sources.netatmo import get_netatmo_domain
 from weather.data_sources.netatmo.netatmo_identifiers import create_ts_netatmo
@@ -47,8 +47,8 @@ services = DataCollectionServiceSet()
 read_dtss_address = f'{socket.gethostname()}:{DTSS_CONFIG["dtss_port_num"]}'
 
 services.add_service(
-    DataCollectionService(
-        service_name='netatmo_short',
+    DataCollectionTask(
+        task_name='netatmo_short',
         read_dtss_address=read_dtss_address,
         read_ts=read_timeseries,
         read_period=DataCollectionPeriod(
@@ -58,8 +58,8 @@ services.add_service(
         store_ts_ids=store_ts_ids
     ))
 services.add_service(
-    DataCollectionService(
-        service_name='netatmo_long',
+    DataCollectionTask(
+        task_name='netatmo_long',
         read_dtss_address=read_dtss_address,
         read_ts=read_timeseries,
         read_period=DataCollectionPeriod(
