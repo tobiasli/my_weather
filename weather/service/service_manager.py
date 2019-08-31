@@ -19,17 +19,17 @@ class ServiceError(Exception):
 
 
 class ServiceLoop:
-    """Service loop is a container for services that are called by a Thread."""
+    """Service loop is a callable container for a task that is called by threading.Thread."""
 
     def __init__(self, name: str,
                  task: ty.Callable[[], None] = None,
                  task_delay: Number = None) -> None:
-        """ServiceLoops are used internally in ServiceManagers so they can perform asynchronous calls towards the
-        services.
+        """ServiceLoops are used internally in Services so they can perform asynchronous calls towards the
+        tasks.
 
         Args:
             name: Name of the task. Used for logging.
-            task: The ServiceTask that should be performed asynchronously.
+            task: The callable that is performed asynchronously.
             task_delay: The delay in seconds between each task execution.
         """
         self.name = name
@@ -73,7 +73,8 @@ class Service:
             name: Name of the service used as the thread name.
             task: Callable (method) that we want to perform regularly.
             task_interval: Number of seconds between each task execution.
-            health_check_action: Callable (method) that verifies health of task/service. True for healthy, False for unhealthy.
+            health_check_action: Callable (method) that verifies health of task/service. True for healthy, False for
+                unhealthy.
             restart_action: Callable (method) performed when health_check == False to try to fix the task/service.
         """
 
@@ -100,7 +101,9 @@ class Service:
         """Method that starts the service."""
         if self.task:
             self.thread = threading.Thread(name=self.name,
-                                           target=ServiceLoop(name=self.name, task=self.task, task_delay=self.task_interval))
+                                           target=ServiceLoop(name=self.name,
+                                                              task=self.task,
+                                                              task_delay=self.task_interval))
             self.thread.continue_loop = True
             self.thread.start()
 
@@ -117,6 +120,7 @@ class Service:
         if self.restart_action:
             self.restart_action()
         self.start()
+
 
 class MaintainerService(Service):
     """A MaintainerService acts like a regular service, but has a dynamic name property that contains information
@@ -138,7 +142,8 @@ class MaintainerService(Service):
             service_manager: The ServiceManager handling this MaintainerService.
             task: Callable (method) that we want to perform regularly.
             task_interval: Number of seconds between each task execution.
-            health_check_action: Callable (method) that verifies health of task/service. True for healthy, False for unhealthy.
+            health_check_action: Callable (method) that verifies health of task/service. True for healthy, False for
+                unhealthy.
             restart_action: Callable (method) performed when health_check == False to try to fix the task/service.
         """
 
@@ -207,4 +212,3 @@ class ServiceManager:
         for service in self.services:
             service.restart()
         self.maintainer.start()
-
