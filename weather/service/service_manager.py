@@ -41,13 +41,13 @@ class ServiceLoop:
         t = threading.currentThread()
         # Loop when continue_loop==True.
         # In the first pass, continue loop might not have been set yet, so we assume True.
-        logging.info('Service start.')
+        logging.info(f'Service {self.name} started.')
         while getattr(t, "continue_loop", True):
             if self.task:
                 self.task()
             time.sleep(self.task_delay)
 
-        logging.info('Service stop.')
+        logging.info(f'Service {self.name} stopped.')
 
 
 class Service:
@@ -118,6 +118,47 @@ class Service:
             self.restart_action()
         self.start()
 
+class MaintainerService(Service):
+    """A MaintainerService acts like a regular service, but has a dynamic name property that contains information
+    regarding the services that the MaintainerService is set to maintain."""
+
+    # noinspection PyMissingConstructor
+    def __init__(self,
+                 service_manager: "ServiceManager",
+                 task: ty.Optional[ty.Callable[[], None]] = None,
+                 task_interval: ty.Optional[Number] = None,
+                 health_check_action: ty.Optional[ty.Callable[[], bool]] = None,
+                 restart_action: ty.Optional[ty.Callable[[], None]] = None
+                 ) -> None:
+        """A MaintainerService acts like a regular service but is aware of it's own ServiceManager. We want the name of
+        the MaintainerService to reflect the services that it maintains. As this list is mutable, being aware of the
+        ServiceManager let's it query the services names any time it is necessary.
+
+        Args:
+            service_manager: The ServiceManager handling this MaintainerService.
+            task: Callable (method) that we want to perform regularly.
+            task_interval: Number of seconds between each task execution.
+            health_check_action: Callable (method) that verifies health of task/service. True for healthy, False for unhealthy.
+            restart_action: Callable (method) performed when health_check == False to try to fix the task/service.
+        """
+
+        if task and task_interval <= 0:
+            raise ServiceError('task_delay/frequency must be higher than 0 seconds.')
+
+        self.task = task
+        self.task_interval = task_interval
+        self.health_check_action = health_check_action if health_check_action else lambda: True
+        self.restart_action = restart_action
+
+        self.thread: threading.Thread = None
+        self.service_manager = service_manager
+
+    @property
+    def name(self) -> str:
+        """The maintainer name contains a reference to the underlying services that are maintained. Since this list
+        of services is mutable, the maintainer_name needs to be dynamic."""
+        return f'maintainer[{", ".join([service.name for service in self.service_manager.services])}]'
+
 
 class ServiceManager:
     """Class for managing a set of services."""
@@ -130,8 +171,8 @@ class ServiceManager:
             health_check_frequency: Number of seconds between each health check. Defaults to 60 seconds.
         """
         self.services = services if services else list()
-        self.maintainer = Service(
-            name='maintainer',
+        self.maintainer = MaintainerService(
+            service_manager=self,
             task=self.check_service_health_and_restart,
             task_interval=health_check_frequency
         )
@@ -139,11 +180,13 @@ class ServiceManager:
     def add_service(self, service: Service) -> None:
         """Add service to managed services."""
         self.services.append(service)
+        logging.info(f'Service {service.name} added to {self.maintainer.name}')
 
     def check_service_health_and_restart(self) -> None:
         """Check the health of all services and restart if necessary."""
         for service in self.services:
             if not service.healthy():
+                logging.info(f'{self.maintainer.name} is restarting service {service.name}')
                 service.restart()
 
     def start_services(self) -> None:

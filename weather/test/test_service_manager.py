@@ -60,7 +60,8 @@ def test_service_boss():
     task2 = TestTask('test_2')
     serv2 = Service(name=task2.name, task=task2.perform, task_interval=1, health_check_action=task2.health_check, restart_action=task2.restart)
 
-    sm = ServiceManager(services=[serv1, serv2], health_check_frequency=0.02)
+    sm = ServiceManager(services=[serv1], health_check_frequency=0.02)
+    sm.add_service(serv2)
     sm.start_services()
     try:
         task2.set_state(0)
