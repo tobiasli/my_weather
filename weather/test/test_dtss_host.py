@@ -8,6 +8,7 @@ from weather.service.dtss_host import DtssHost
 from weather.data_sources.heartbeat import create_heartbeat_request
 import logging
 
+# noinspection PyArgumentList
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
@@ -21,11 +22,9 @@ if not 'CONFIG_DIRECTORY' in os.environ:
 
 sys.path.append(os.environ['CONFIG_DIRECTORY'])
 
-from dtss_config import test_configs
+from dtss_config import test_config
 
-if socket.gethostname() not in test_configs:
-    raise Exception(f"Can't find configuration for machine {socket.gethostname()}")
-DTSS_TEST_CONFIG = test_configs[socket.gethostname()]
+DTSS_TEST_CONFIG = test_config
 
 
 def find_free_port() -> int:

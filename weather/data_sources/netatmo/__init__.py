@@ -2,7 +2,7 @@
 import os
 import sys
 # Get credentials:
-if not 'CONFIG_DIRECTORY' in os.environ:
+if 'CONFIG_DIRECTORY' not in os.environ:
     raise EnvironmentError('Cannot find path netatmo configs in env var CONFIG_DIRECTORY.')
 
 sys.path.append(os.environ['CONFIG_DIRECTORY'])
