@@ -2,9 +2,10 @@
 callback provider. The read_callback and find_callback can used by a dtsServer directly as cb and find_cb
 respectively."""
 
+from abc import abstractmethod
+
 from shyft.api import StringVector, UtcPeriod, TsVector, TsInfoVector
 from shyft.repository.interfaces import TsRepository
-from abc import abstractmethod
 
 
 class DataCollectionRepository(TsRepository):

@@ -1,21 +1,26 @@
 """This module contains NetatmoRepository which contains all necessary methods for a DtssHost to handle communications
 with a Netatmo weather station service."""
 
-from typing import Dict, List, Sequence, Union
+import typing as ty
+import os
+from abc import abstractmethod, ABC
+import logging
+
+import numpy as np
+import tregex
 import lnetatmo
 from shyft.api import (StringVector, UtcPeriod, TimeAxisByPoints, TimeSeries, POINT_INSTANT_VALUE, TsVector,
                        TsInfoVector,
                        TsInfo, time, utctime_now, Calendar)
+
 from weather.data_sources.netatmo.netatmo_domain import NetatmoDomain
 from weather.interfaces.data_collection_repository import DataCollectionRepository
 from weather.data_sources.netatmo.netatmo_identifiers import parse_ts_id, parse_ts_query
 from weather.utilities import rate_limiter
-import logging
-import numpy as np
 
-DeviceMetadataType = Dict[str, object]
-TimeType = Union[float, int, time]
-Number = Union[float, int]
+DeviceMetadataType = ty.Dict[str, object]
+TimeType = ty.Union[float, int, time]
+Number = ty.Union[float, int]
 NoneType = type(None)
 NanType = type(np.nan)
 
@@ -33,7 +38,17 @@ class NetatmoRepository(DataCollectionRepository):
                  password: str,
                  client_id: str,
                  client_secret: str,
-                 api_limits: Dict[str, Dict[str, int]] = None, direct_login: bool = True) -> None:
+                 api_limits: ty.Dict[str, ty.Dict[str, int]] = None, direct_login: bool = True) -> None:
+        """
+
+        :param username: Netatmo login username.
+        :param password: Netatmo login password.
+        :param client_id: Client id for communicating with the netatmo api.
+        :param client_secret: Client id for communicating with the netatmo api.
+        :param api_limits: Parameters for the RateLimiters that make sure we do not trip api communication limits.
+        :param direct_login: Bool dictating if the api connection is established on init or if we want to initiate
+        the api connection later.
+        """
 
         api_limits = api_limits
 
@@ -69,14 +84,14 @@ class NetatmoRepository(DataCollectionRepository):
             limiter.add_action_timestamp(timestamp)
 
     @staticmethod
-    def set_none_to_nan(values: Sequence[Union[Number, NoneType]]) -> Sequence[Union[Number, NanType]]:
+    def set_none_to_nan(values: ty.Sequence[ty.Union[Number, NoneType]]) -> ty.Sequence[ty.Union[Number, NanType]]:
         """Method that replaces None with np.nan in a sequence."""
         return [np.nan if value is None else value for value in values]
 
     def _get_measurements_block(self, *,
                                 device_id: str,
                                 module_id: str,
-                                measurements: Sequence[str],
+                                measurements: ty.Sequence[str],
                                 utc_period: UtcPeriod = None
                                 ) -> TsVector:
         """Get data for a specific device and set of measurements. utc_period is the timespan for which we ask for
@@ -87,7 +102,7 @@ class NetatmoRepository(DataCollectionRepository):
         Args:
             device_id: Unique identifier for the netatmo device.
             module_id: Unique identifier for the netatmo module (can be None, '').
-            measurements: A Sequence of strings representing the measurements we want to fetch.
+            measurements: A ty.Sequence of strings representing the measurements we want to fetch.
             utc_period: Inclusive start/end. The period we want data for (if none, the longest possible period
                         (up to 1024 values).
 
@@ -132,7 +147,7 @@ class NetatmoRepository(DataCollectionRepository):
     def get_measurements(self, *,
                          device_id: str,
                          module_id: str,
-                         measurements: Sequence[str],
+                         measurements: ty.Sequence[str],
                          utc_period: UtcPeriod
                          ) -> TsVector:
         """Get data for a specific device and set of measurements. utc_period defines the data period.
@@ -142,7 +157,7 @@ class NetatmoRepository(DataCollectionRepository):
         Args:
             device_id: Unique identifier for the netatmo device.
             module_id: Unique identifier for the netatmo module (can be None, '').
-            measurements: A Sequence of strings representing the measurements we want to fetch.
+            measurements: A ty.Sequence of strings representing the measurements we want to fetch.
             utc_period: Inclusive start/end. The period we want data for (if none, the longest possible period
                         (up to 1024 values).
 
@@ -172,13 +187,13 @@ class NetatmoRepository(DataCollectionRepository):
 
             result_end = result[0].time_axis.time_points_double[-1]  # Set the start of the new calls UtcPeriod.
             # noinspection PyArgumentList
-            logging.info(f'Got {len(result[0])} datapoints from '
+            logging.info(f'Got {len(result[0])} data points from '
                          f'{self.utc.to_string(result[0].time_axis.time_points_double[0])} to '
                          f'{self.utc.to_string(result_end)}')
 
         return TsVector(output)
 
-    def read(self, list_of_ts_id: Sequence[str], period: UtcPeriod) -> Dict[str, TimeSeries]:
+    def read(self, list_of_ts_id: ty.Sequence[str], period: UtcPeriod) -> ty.Dict[str, TimeSeries]:
         """Take a sequence of strings identifying specific timeseries and get data from these series according to
         the timespan defined in period.
 
@@ -279,14 +294,14 @@ class NetatmoRepository(DataCollectionRepository):
         tsiv.append(tsi)
         return tsiv
 
-    def read_forecast(self, list_of_fc_id: List[str], period: UtcPeriod):
+    def read_forecast(self, list_of_fc_id: ty.List[str], period: UtcPeriod):
         """
         read and return the newest forecast that have the biggest overlap with specified period
         note that we should check that the semantic of this is reasonable
         """
         raise NotImplementedError("read_forecast")
 
-    def store(self, timeseries_dict: Dict[str, TimeSeries]):
+    def store(self, timeseries_dict: ty.Dict[str, TimeSeries]):
         """ Store the supplied time-series to the underlying db-system.
             Parameters
             ----------
