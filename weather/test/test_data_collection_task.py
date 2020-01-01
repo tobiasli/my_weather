@@ -19,9 +19,9 @@ if not 'CONFIG_DIRECTORY' in os.environ:
 
 sys.path.append(os.environ['CONFIG_DIRECTORY'])
 
-from dtss_config import test_config
+from dtss_config import test_configs
 
-DTSS_TEST_CONFIG = test_config
+DTSS_TEST_CONFIG = test_configs[socket.gethostname()]
 
 # noinspection PyArgumentList
 logging.basicConfig(
