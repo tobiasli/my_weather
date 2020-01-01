@@ -1,0 +1,26 @@
+language: python
+dist: xenial
+sudo: false
+python:
+- '3.6'
+- '3.7'
+before_install:
+- export PYTHONPATH=$PYTHONPATH:$(pwd)
+install:
+- conda install -c shyft-os shyft
+- pip install python-coveralls
+- pip install pytest
+- pip install pytest-cov
+- pip install .
+script:
+- pytest --cov=weather weather
+after_success:
+- coveralls
+deploy:
+  provider: pypi
+  user: __token__
+  password:
+    secure: pEgrsmYcAI0GFMvbpAZi9wpp4A11BKof2wIyDrbRkqQd4V9Ac6BPvRtzwQMJwWVLMwYuJNvmDsIzX26YFvK9oGO7wQ2seJfAMTngWhqpAlLihOMYrfoXXCZs/yXLN3cS+hxmpI/SfrEJx1MjHihBcMv5a9bSk9U8YSj5912J9/ixUazNKEwkQuLOQCMDsYX649i1RXL1v5NosfEIJcRGi0jXZ2shevL3tcJQkROsMEcLvyIZ3XPFDLMagpv4/WS5BYzfKeWDamMP7p9FqMDki043PLeBEWDfKxp3sdY3zCDUvU4OFK6Qr301JfPbP2g3BF3o9ePhZnXBGrkvIVq8KSWcIX3wUfvnauuFwov6sirv4x/ZmhwuVJEgASYB6XKd8MZUFzi6QhjlpeI5lcmKv1xSv76x2c+Pv7Rt1zNRSA830LvwQMpRHly2KudnmrFJr8kfRygI61nzugnPXbNH/hbHemSFBlJ+e/VeNJizORKZfsGga0fcPp8Xzs3A+slxLltqxOVdLgZ7/elbOKvgCqJ3bd3c0mx79szyzt4jkbFSZlexHVrxz4nHl3b8zGRRA9xYSvnpudycPLD7k84Af+6MCxwvG3clB+nLiqVGZWvaK2fvh+I8y4NwssSLHtH3E7laA50lkCGa4COkt1mDYPPaK5+wXOIsKBfSRKEJpz4=
+  on:
+    branch: master
+  skip_existing: true
