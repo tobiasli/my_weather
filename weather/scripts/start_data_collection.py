@@ -14,12 +14,6 @@ from weather.data_sources.netatmo.netatmo_identifiers import create_ts_netatmo
 if not 'CONFIG_DIRECTORY' in os.environ:
     raise EnvironmentError('Cannot find path to app authentication codes.')
 sys.path.append(os.environ['CONFIG_DIRECTORY'])
-from dtss_config import configs
-
-# Get config for current machine:
-if socket.gethostname() not in configs:
-    raise Exception(f"Can't find configuration for machine {socket.gethostname()}")
-DTSS_CONFIG = configs[socket.gethostname()]
 
 # Initialize logging
 logging.basicConfig(
@@ -41,7 +35,7 @@ if __name__ == '__main__':
     # Initialize DataCollectionServices:
 
     # Initialize netatmo collection:
-    read_dtss_address = f'{socket.gethostname()}:{DTSS_CONFIG["dtss_port_num"]}'
+    read_dtss_address = f'{socket.gethostname()}:{os.environ["DTSS_PORT_NUM"]}'
 
     netatmo_short = DataCollectionTask(
         task_name='netatmo_short',

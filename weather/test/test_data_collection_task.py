@@ -19,10 +19,6 @@ if not 'CONFIG_DIRECTORY' in os.environ:
 
 sys.path.append(os.environ['CONFIG_DIRECTORY'])
 
-from dtss_config import test_configs
-
-DTSS_TEST_CONFIG = test_configs[socket.gethostname()]
-
 # noinspection PyArgumentList
 logging.basicConfig(
     level=logging.INFO,
@@ -45,7 +41,7 @@ def find_free_port() -> int:
 
 @pytest.fixture(scope="session")
 def dtss() -> DtssHost:
-    return DtssHost(dtss_port_num=find_free_port(),
+    return DtssHost(port_num=find_free_port(),
                     container_directory=tempfile.mkdtemp(prefix='dtss_store_'),
                     data_collection_repositories=[(MockRepository1, dict()),
                                                   (MockRepository2, dict())])

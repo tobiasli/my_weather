@@ -6,11 +6,13 @@ import typing as ty
 import logging
 import urllib
 import os
+from abc import ABC, abstractmethod
 
 from shyft.api import (DtsServer, DtsClient, StringVector, TsVector, UtcPeriod, TsInfoVector)
 
 from weather.data_sources.heartbeat import HeartbeatRepository, create_heartbeat_request
 from weather.interfaces.data_collection_repository import DataCollectionRepository
+from weather.interfaces.config import RepositoryConfigBase, EnvVarConfig
 
 ConfigType = ty.Dict[str, object]
 
@@ -25,26 +27,76 @@ class DtssHostError(Exception):
     pass
 
 
+class DtssHostConfigBase(ABC, RepositoryConfigBase):
+    _unpack_props = ['port_num', 'container_directory', 'data_collection_repositories']
+
+    @property
+    @abstractmethod
+    def port_num(self) -> int:
+        """This property must contain the port number for the DtssHost."""
+
+    @property
+    @abstractmethod
+    def container_directory(self) -> str:
+        """This property must contain the path to the container directory for the DtssHost."""
+
+    @property
+    @abstractmethod
+    def data_collection_repositories(self) -> ty.Sequence[ty.Tuple[ty.Type[DataCollectionRepository], ty.Dict[str, ty.Any]]]:
+        """This property must contain the configured DataCollectionRepository's for the DtssHost."""
+
+
+class DtssHostEnvironmentVariablesConfig(DtssHostConfigBase, EnvVarConfig):
+    """Netatmo config information fetched partially from environment_variables."""
+
+    def __init__(self,
+                 port_num_var: str,
+                 container_directory_var: str,
+                 data_collection_repositories: ty.Sequence[ty.Tuple[ty.Type[DataCollectionRepository], ty.Dict[str, ty.Any]]]
+                 ) -> None:
+        self.dtss_port_num_var = self.verify_env_var(port_num_var)
+        self.container_directory_var = self.verify_env_var(container_directory_var)
+
+        self._data_collection_repositories = data_collection_repositories
+
+    @property
+    def port_num(self) -> int:
+        """Return the username for the Netatmo instance."""
+        return int(self.get_env_var(self.dtss_port_num_var))
+
+    @property
+    def container_directory(self) -> str:
+        """Return the username for the Netatmo instance."""
+        return self.get_env_var(self.container_directory_var)
+
+    @property
+    def data_collection_repositories(self) -> ty.Sequence[
+        ty.Tuple[ty.Type[DataCollectionRepository], ty.Dict[str, ty.Any]]]:
+        """Return the choice of direct login: If we initiate the Netatmo API on construction or if we wait."""
+        return self._data_collection_repositories
+
+
 class DtssHost:
     """DtssHost is a data service that accepts queries for TimeSeries data using url identifiers and UtcPeriods.
     The service handles calls both for source systems (i.e. Netatmo api) and data calls directed to a local
     container hosting the same data for faster queries."""
 
     def __init__(self,
-                 dtss_port_num: int,
-                 data_collection_repositories: ty.Sequence[ty.Tuple[ty.Type[DataCollectionRepository], ty.Dict[str, ty.Any]]],
+                 port_num: int,
+                 data_collection_repositories: ty.Sequence[
+                     ty.Tuple[ty.Type[DataCollectionRepository], ty.Dict[str, ty.Any]]],
                  container_directory: str) -> None:
         """DtssHost constructor needs a port number for the service end point. The data collection repositories are for
         collecting the source data of interest, and the container directory is where the timeseries files are stored for
         the local database.
 
         Args:
-            dtss_port_num: The listening port the DtsServer uses.
+            port_num: The listening port the DtsServer uses.
             data_collection_repositories: The data collection repositories that we are able to collect data from.
             container_directory: The disk location where we look for and store timeseries.
         """
 
-        self.dtss_port_num = dtss_port_num
+        self.port_num = port_num
 
         self.data_collection_repositories = data_collection_repositories
         self.repos = None
@@ -68,7 +120,7 @@ class DtssHost:
         """Construct and configure our DtsServer."""
         # noinspection PyArgumentList
         dtss = DtsServer()
-        dtss.set_listening_port(self.dtss_port_num)
+        dtss.set_listening_port(self.port_num)
         # dtss.set_auto_cache(True)
         dtss.cb = self.read_callback
         dtss.find_cb = self.find_callback
@@ -112,7 +164,7 @@ class DtssHost:
         if not self.dtss:
             logging.info('DtssHost attempted to stop a server that isn''t running.')
         else:
-            logging.info(f'DtssHost stop at port {self.dtss_port_num}.')
+            logging.info(f'DtssHost stop at port {self.port_num}.')
             self.dtss.clear()
             del self.dtss
             self.dtss = None
@@ -126,7 +178,7 @@ class DtssHost:
     @property
     def address(self) -> str:
         """Return the full service address of the DtssHost."""
-        return f'localhost:{self.dtss_port_num}'
+        return f'localhost:{self.port_num}'
         # return f'{socket.gethostname()}:{self.dtss_port_num}'
 
     def read_callback(self, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
