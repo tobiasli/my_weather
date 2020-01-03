@@ -3,10 +3,7 @@
 import os
 import sys
 import socket
-import time
 import logging
-
-import shyft.time_series as st
 
 from weather.service.data_collection_task import DataCollectionTask, DataCollectionPeriod
 from weather.service.service_manager import Service, ServiceManager
@@ -42,7 +39,6 @@ if __name__ == '__main__':
     store_ts_ids = [measurement.ts_id for measurement in measurements]
 
     # Initialize DataCollectionServices:
-
 
     # Initialize netatmo collection:
     read_dtss_address = f'{socket.gethostname()}:{DTSS_CONFIG["dtss_port_num"]}'

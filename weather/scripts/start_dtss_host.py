@@ -3,12 +3,20 @@ import os
 import sys
 import socket
 import time
+import logging
 
 from weather.data_sources.netatmo.netatmo import NetatmoRepository
 from weather.service.dtss_host import DtssHost
 from weather.data_sources.heartbeat import create_heartbeat_request
 from weather.service.service_manager import Service, ServiceManager
 from shyft.api import DtsClient
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
+    handlers=[
+        logging.StreamHandler()
+    ])
 
 if not 'CONFIG_DIRECTORY' in os.environ:
     raise EnvironmentError('Cannot find path to app authentication codes.')
@@ -30,7 +38,7 @@ data_collection_repos = [
 if __name__ == '__main__':
     # Initialize DtssHost:
     host = DtssHost(**DTSS_CONFIG, data_collection_repositories=data_collection_repos)
-
+    host.start()
     # Create a ServiceManager to monitor the health of the Dtss every 30 minutes.
     # health_check_action performs a dummy find-request and expects a non-empty response.
     sm = ServiceManager(services=[
@@ -49,6 +57,3 @@ if __name__ == '__main__':
         host.stop()
         del host
         del sm
-
-_DEFAULT_DATA_COLLECTION_REPO_TYPES = (NetatmoRepository, MockRepository1, MockRepository2)
-_DEFAULT_DATA_COLLECTION_REPO_TYPE_LOOKUP = {repo.name: repo for repo in _DEFAULT_DATA_COLLECTION_REPO_TYPES}
