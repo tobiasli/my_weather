@@ -3,7 +3,7 @@ import os
 import sys
 import socket
 import pytest
-import time
+import tempfile
 import logging
 from contextlib import closing
 
@@ -11,7 +11,7 @@ import shyft.time_series as st
 
 from weather.service.dtss_host import DtssHost, DtsClient
 from weather.service.data_collection_task import DataCollectionPeriod, DataCollectionTask
-from weather.service.service_manager import Service
+from weather.test.utilities import MockRepository1, MockRepository2
 
 # Get credentials:
 if not 'CONFIG_DIRECTORY' in os.environ:
@@ -45,7 +45,10 @@ def find_free_port() -> int:
 
 @pytest.fixture(scope="session")
 def dtss() -> DtssHost:
-    return DtssHost(**DTSS_TEST_CONFIG, dtss_port_num=find_free_port())
+    return DtssHost(dtss_port_num=find_free_port(),
+                    container_directory=tempfile.mkdtemp(prefix='dtss_store_'),
+                    data_collection_repositories=[(MockRepository1, dict()),
+                                                  (MockRepository2, dict())])
 
 
 def test_read_and_store(dtss):

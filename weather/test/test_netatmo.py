@@ -22,13 +22,13 @@ if not 'CONFIG_DIRECTORY' in os.environ:
 
 sys.path.append(os.environ['CONFIG_DIRECTORY'])
 
-from netatmo_config import login, config
+from netatmo_config import config, login
 
 
 @pytest.fixture
 def net():
     """Return a netatmo instance."""
-    return NetatmoRepository(**login, **config)
+    return NetatmoRepository(**config)
 
 
 @pytest.fixture()

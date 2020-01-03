@@ -1,12 +1,17 @@
-from contextlib import closing
+import logging
 import socket
 import os
 import sys
 import pytest
+import tempfile
+
+from contextlib import closing
+
 from shyft.api import Calendar, UtcPeriod, StringVector, TsVector, DtsClient, TimeSeries
+
 from weather.service.dtss_host import DtssHost
 from weather.data_sources.heartbeat import create_heartbeat_request
-import logging
+from weather.test.utilities import MockRepository1, MockRepository2
 
 # noinspection PyArgumentList
 logging.basicConfig(
@@ -38,19 +43,21 @@ def find_free_port() -> int:
         return s.getsockname()[1]
 
 
-def test_dtss_construction():
-    dtss = DtssHost(**DTSS_TEST_CONFIG, dtss_port_num=find_free_port())
-
-
 def test_dtss_start_service():
-    dtss = DtssHost(**DTSS_TEST_CONFIG, dtss_port_num=find_free_port())
+    dtss = DtssHost(dtss_port_num=find_free_port(),
+                    container_directory=tempfile.mkdtemp(prefix='dtss_store_'),
+                    data_collection_repositories=[(MockRepository1, dict()),
+                                                  (MockRepository2, dict())])
     dtss.start()
     dtss.stop()
 
 
 @pytest.fixture(scope="session")
 def dtss() -> DtssHost:
-    return DtssHost(**DTSS_TEST_CONFIG, dtss_port_num=find_free_port())
+    return DtssHost(dtss_port_num=find_free_port(),
+                    container_directory=tempfile.mkdtemp(prefix='dtss_store_'),
+                    data_collection_repositories=[(MockRepository1, dict()),
+                                                  (MockRepository2, dict())])
 
 
 def test_read_callback_success(dtss):

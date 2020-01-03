@@ -2,7 +2,7 @@
 me poll timeseries data either directly from the source (Netatmo API) or from the containers (local cache) available to
 the Dtss. This lets gives me local storage of the data that can be queried freely."""
 
-from typing import Dict, Any
+import typing as ty
 import logging
 import urllib
 import os
@@ -11,14 +11,8 @@ from shyft.api import (DtsServer, DtsClient, StringVector, TsVector, UtcPeriod, 
 
 from weather.data_sources.heartbeat import HeartbeatRepository, create_heartbeat_request
 from weather.interfaces.data_collection_repository import DataCollectionRepository
-from weather.data_sources.netatmo.netatmo import NetatmoRepository
-from weather.test.utilities import MockRepository1, MockRepository2  # Used for tests.
 
-ConfigType = Dict[str, object]
-
-
-_DEFAULT_DATA_COLLECTION_REPO_TYPES = (NetatmoRepository, MockRepository1, MockRepository2)
-_DEFAULT_DATA_COLLECTION_REPO_TYPE_LOOKUP = {repo.name: repo for repo in _DEFAULT_DATA_COLLECTION_REPO_TYPES}
+ConfigType = ty.Dict[str, object]
 
 
 class DtssHostConfigurationError(Exception):
@@ -38,7 +32,7 @@ class DtssHost:
 
     def __init__(self,
                  dtss_port_num: int,
-                 data_collection_repositories: Dict[str, Dict[str, Any]],
+                 data_collection_repositories: ty.Sequence[ty.Tuple[ty.Type[DataCollectionRepository], ty.Dict[str, ty.Any]]],
                  container_directory: str) -> None:
         """DtssHost constructor needs a port number for the service end point. The data collection repositories are for
         collecting the source data of interest, and the container directory is where the timeseries files are stored for
@@ -54,20 +48,18 @@ class DtssHost:
 
         self.data_collection_repositories = data_collection_repositories
         self.repos = None
-        self.make_repos()
+        self.initiate_repos()
         self.container_directory = container_directory
 
         # Initialize and configure server:
         self.dtss: DtsServer = None
 
-    def make_repos(self) -> None:
+    def initiate_repos(self) -> None:
         """Construct all the data collection repositories."""
         # Build a dictionary containing every available repository.
-        self.repos: Dict[str, DataCollectionRepository] = {
-            name: _DEFAULT_DATA_COLLECTION_REPO_TYPE_LOOKUP[name](**config)
-            for name, config in self.data_collection_repositories.items()
-            if name in _DEFAULT_DATA_COLLECTION_REPO_TYPE_LOOKUP
-        }
+        repos = [repo(**config) for repo, config in self.data_collection_repositories]
+        self.repos: ty.Dict[str, DataCollectionRepository] = {repo.name: repo for repo in repos}
+
         # The HeartbeatRepository contains callbacks that return arbitrary responses to all calls.
         # This lets  ut verify that the service is running.
         self.repos[HeartbeatRepository.name] = HeartbeatRepository(host=self)
@@ -128,7 +120,7 @@ class DtssHost:
     def restart(self) -> None:
         """Restart the DtsServer."""
         self.stop()
-        self.make_repos()  # Reinitialize repositories.
+        self.initiate_repos()  # Reinitialize repositories.
         self.start()
 
     @property
