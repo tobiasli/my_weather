@@ -1,10 +1,14 @@
 """Classes and Metaclasses used for config handling in my_weather."""
 import os
+
 import typing as ty
+
 from abc import abstractmethod
 from collections import Mapping
 
 import tregex
+
+from weather.utilities.simple_crypto import SimpleCryptoEngine
 
 
 class RepositoryConfigError(Exception):
@@ -37,7 +41,7 @@ class RepositoryConfigBase(Mapping):
         return getattr(self, item)
 
 
-class EnvironmentVariablesConfigBase:
+class EnvVarConfig:
     """Superclass containing methods for verifying and getting environment variables."""
 
     @staticmethod
@@ -50,5 +54,17 @@ class EnvironmentVariablesConfigBase:
 
     @staticmethod
     def get_env_var(var: str) -> str:
-        """Simple check if variable exists in environment."""
+        """Get the value from a named environment variable."""
         return os.environ.get(var, None)
+
+
+class EncryptedEnvVarConfig(EnvVarConfig):
+    """Superclass containing methods for verifying and getting sha-512 encrypted environment variables."""
+
+    def __init__(self, password: str, salt: str) -> None:
+        """Password encrypted environment variables"""
+        self.engine = SimpleCryptoEngine(password, salt)
+
+    def get_env_var(self, var: str) -> str:
+        """Get the value from an encrypted, named environment variable."""
+        return self.engine.decrypt(os.environ.get(var, None))

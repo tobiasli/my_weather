@@ -2,7 +2,7 @@
 import typing as ty
 from abc import ABC, abstractmethod
 
-from weather.interfaces.config import RepositoryConfigBase, EnvironmentVariablesConfigBase
+from weather.interfaces.config import RepositoryConfigBase, EnvVarConfig
 
 
 class NetatmoConfigBase(ABC, RepositoryConfigBase):
@@ -41,7 +41,7 @@ class NetatmoConfigBase(ABC, RepositoryConfigBase):
         """This property must contain the optional direct_login for Netatmo."""
 
 
-class NetatmoEnvironmentVariablesConfig(NetatmoConfigBase, EnvironmentVariablesConfigBase):
+class NetatmoEnvironmentVariablesConfig(NetatmoConfigBase, EnvVarConfig):
     """Netatmo config information fetched partially from environment_variables."""
     def __init__(self,
                  username_var: str,
