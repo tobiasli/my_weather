@@ -175,6 +175,10 @@ def test_environment_config():
 
     assert dict(**config) == dict(arg1='something', arg2=2, arg3=[1, 2, 3])
 
+    del os.environ['arg1_var']
+    del os.environ['arg2_var']
+    del os.environ['arg3_var']
+
 
 def test_environment_config_fail():
     class TestConfigBase(ABC, RepositoryConfigBase):
@@ -219,6 +223,9 @@ def test_environment_config_fail():
 
     with pytest.raises(EnvironmentError):
         config = TestConfig(arg1_var='arg1_var', arg2_var='arg2_var', arg3_var='arg3_var')
+
+    del os.environ['arg1_var']
+    del os.environ['arg2_var']
 
 
 def test_encrypted_environment_config():
@@ -273,3 +280,7 @@ def test_encrypted_environment_config():
                         arg3_var='arg3_var')
 
     assert dict(**config) == dict(arg1='something', arg2=2, arg3=[1, 2, 3])
+
+    del os.environ['arg1_var']
+    del os.environ['arg2_var']
+    del os.environ['arg3_var']
