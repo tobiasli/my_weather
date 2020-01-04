@@ -21,13 +21,6 @@ logging.basicConfig(
         logging.StreamHandler()
     ])
 
-# Get credentials:
-if not 'CONFIG_DIRECTORY' in os.environ:
-    raise EnvironmentError('Cannot find path to app authentication codes.')
-
-sys.path.append(os.environ['CONFIG_DIRECTORY'])
-
-
 def find_free_port() -> int:
     """
     from SO https://stackoverflow.com/questions/1365265/on-localhost-how-to-pick-a-free-port-number

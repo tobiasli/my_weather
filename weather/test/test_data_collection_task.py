@@ -1,6 +1,4 @@
 """Tests for the DataCollectionSerice classes."""
-import os
-import sys
 import socket
 import pytest
 import tempfile
@@ -12,12 +10,6 @@ import shyft.time_series as st
 from weather.service.dtss_host import DtssHost, DtsClient
 from weather.service.data_collection_task import DataCollectionPeriod, DataCollectionTask
 from weather.test.utilities import MockRepository1, MockRepository2
-
-# Get credentials:
-if not 'CONFIG_DIRECTORY' in os.environ:
-    raise EnvironmentError('Cannot find path to app authentication codes.')
-
-sys.path.append(os.environ['CONFIG_DIRECTORY'])
 
 # noinspection PyArgumentList
 logging.basicConfig(

@@ -17,15 +17,30 @@ from bokeh.models import DatetimeTickFormatter, Range1d, LinearAxis
 import numpy as np
 
 from weather.data_sources.netatmo.netatmo_domain import NetatmoDomain, types
+from weather.data_sources.netatmo.netatmo import NetatmoEncryptedEnvVarConfig
 from weather.data_sources.heartbeat import create_heartbeat_request
 
 heartbeat = TimeSeries(create_heartbeat_request('static_plot'))
 
-sys.path.append(os.environ['CONFIG_DIRECTORY'])
-from netatmo_config import login
+env_pass = sys.argv[1]
+env_salt = sys.argv[2]
+
+config = NetatmoEncryptedEnvVarConfig(
+    username_var='NETATMO_USER',
+    password_var='NETATMO_PASS',
+    client_id_var='NETATMO_ID',
+    client_secret_var='NETATMO_SECRET',
+    password=env_pass,
+    salt=env_salt,
+)
 
 # Get measurements form domain:
-domain = NetatmoDomain(**login)
+domain = NetatmoDomain(
+    username=config.username,
+    password=config.password,
+    client_id=config.client_id,
+    client_secret=config.client_secret
+)
 device = 'Stua'
 module = ''
 plot_data = [
@@ -51,9 +66,9 @@ data = client.evaluate(tsv, period)
 
 
 # Plotting:
-def bokeh_time_from_timestamp(cal:Calendar, timestamp) -> float:
+def bokeh_time_from_timestamp(cal: Calendar, timestamp) -> float:
     """Create a localized ms timestamp from a shyft utc timestamp."""
-    return float((timestamp+cal.tz_info.base_offset())*1000)
+    return float((timestamp + cal.tz_info.base_offset()) * 1000)
 
 
 def get_xy(ts: TimeSeries) -> np.array:

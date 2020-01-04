@@ -16,27 +16,15 @@ logging.basicConfig(
 
 # Get credentials:
 @pytest.fixture()
-def env_password(pytestconfig):
-    """Return the password for encrypted environment variables."""
-    return pytestconfig.getoption("password")
-
-
-@pytest.fixture()
-def env_salt(pytestconfig):
-    """Return the salt for encrypted environment variables."""
-    return pytestconfig.getoption("salt")
-
-
-@pytest.fixture()
-def config(env_password, env_salt):
+def config(pytestconfig):
     """Return an instance of the NetatmoConfig."""
     return NetatmoEncryptedEnvVarConfig(
         username_var='NETATMO_USER',
         password_var='NETATMO_PASS',
         client_id_var='NETATMO_ID',
         client_secret_var='NETATMO_SECRET',
-        password=env_password,
-        salt=env_salt,
+        password=pytestconfig.getoption("password"),
+        salt=pytestconfig.getoption("salt"),
     )
 
 @pytest.fixture
