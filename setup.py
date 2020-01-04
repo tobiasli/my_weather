@@ -8,7 +8,7 @@ setup(name='my_weather',
       author='Tobias Litherland',
       author_email='tobiaslland@gmail.com',
       url='https://github.com/tobiasli/weather',
-      requirements=['tregex-tobiasli', 'shyft', 'lnetatmo', 'numpy'],
+      requirements=['tregex-tobiasli', 'shyft', 'lnetatmo', 'numpy', 'shyft'],
      )
 
 import setuptools
@@ -30,5 +30,5 @@ setuptools.setup(name='weather-tobiasli',
                      "License :: OSI Approved :: MIT License",
                      "Operating System :: OS Independent",
                  ],
-                 install_requires=['tregex-tobiasli', 'shyft', 'lnetatmo', 'pytest']
+                 install_requires=['tregex-tobiasli', 'shyft', 'lnetatmo', 'pytest', 'numpy', 'shyft']
                  )

@@ -1,11 +1,9 @@
 """This script file starts the DtssHost service on a port specified in ENV."""
-import os
 import sys
-import socket
 import time
 import logging
 
-from weather.data_sources.netatmo.netatmo import NetatmoRepository
+from weather.data_sources.netatmo.netatmo import NetatmoRepository, NetatmoEncryptedEnvVarConfig
 from weather.service.dtss_host import DtssHost, DtssHostEnvironmentVariablesConfig
 from weather.data_sources.heartbeat import create_heartbeat_request
 from weather.service.service_manager import Service, ServiceManager
@@ -18,10 +16,25 @@ logging.basicConfig(
         logging.StreamHandler()
     ])
 
-if not 'CONFIG_DIRECTORY' in os.environ:
-    raise EnvironmentError('Cannot find path to app authentication codes.')
-sys.path.append(os.environ['CONFIG_DIRECTORY'])
-from netatmo_config import config as netatmo_config
+# Get password and salt for decrypting environment variables.
+env_pass = sys.argv[1]
+env_salt = sys.argv[2]
+
+api_limits = {
+        # name of limit: {max calls within span, timespan in sec, seconds wait when limit is met.
+        '10 seconds': {'action_limit': 50, 'timespan': 10, 'wait_time': 1},  # Max netatmo api calls 50 pr 10 seconds.
+        '1 hour': {'action_limit': 500, 'timespan': 3600, 'wait_time': 60},  # Max netatmo api calls 500 pr hour.
+    }
+
+netatmo_config = NetatmoEncryptedEnvVarConfig(
+    username_var='NETATMO_USER',
+    password_var='NETATMO_PASS',
+    client_id_var='NETATMO_ID',
+    client_secret_var='NETATMO_SECRET',
+    password=env_pass,
+    salt=env_salt,
+    api_limits=api_limits
+)
 
 
 heartbeat_interval = 60 * 30

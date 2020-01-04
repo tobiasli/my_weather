@@ -7,13 +7,9 @@ import logging
 
 from weather.service.data_collection_task import DataCollectionTask, DataCollectionPeriod
 from weather.service.service_manager import Service, ServiceManager
-from weather.data_sources.netatmo import get_netatmo_domain
+from weather.data_sources.netatmo import NetatmoDomain
+from weather.data_sources.netatmo.netatmo import NetatmoEncryptedEnvVarConfig
 from weather.data_sources.netatmo.netatmo_identifiers import create_ts_netatmo
-
-# Get configs from config directory:
-if not 'CONFIG_DIRECTORY' in os.environ:
-    raise EnvironmentError('Cannot find path to app authentication codes.')
-sys.path.append(os.environ['CONFIG_DIRECTORY'])
 
 # Initialize logging
 logging.basicConfig(
@@ -23,11 +19,28 @@ logging.basicConfig(
         logging.StreamHandler()
     ])
 
+# Get password and salt for decrypting environment variables.
+env_pass = sys.argv[1]
+env_salt = sys.argv[2]
+
+netatmo_config = NetatmoEncryptedEnvVarConfig(
+    username_var='NETATMO_USER',
+    password_var='NETATMO_PASS',
+    client_id_var='NETATMO_ID',
+    client_secret_var='NETATMO_SECRET',
+    password=env_pass,
+    salt=env_salt,
+)
+
 if __name__ == '__main__':
     # Get the timeseries we want this instance to read:
-    domain = get_netatmo_domain()
+    domain = NetatmoDomain(
+        username=netatmo_config.username,
+        password=netatmo_config.password,
+        client_id=netatmo_config.client_id,
+        client_secret=netatmo_config.client_secret)
 
-    # Get all timeseries:
+    # Create a list of ts_ids to read and a corresponding list of ts_ids to store.:
     measurements = [measurement for source in domain.data_source_list for measurement in source.measurements]
     read_timeseries = [create_ts_netatmo(measurement) for measurement in measurements]
     store_ts_ids = [measurement.ts_id for measurement in measurements]

@@ -1,10 +1,8 @@
 from shyft.api import Calendar, UtcPeriod, StringVector
-import os
-import sys
 import pytest
 import logging
 
-from weather.data_sources.netatmo.netatmo import NetatmoRepository
+from weather.data_sources.netatmo.netatmo import NetatmoRepository, NetatmoEncryptedEnvVarConfig
 from weather.data_sources.netatmo.netatmo_domain import types, NetatmoDomain
 from weather.data_sources.netatmo.netatmo_identifiers import create_ts_id, create_ts_query
 from weather.test.bin.netatmo_test_data import MOCK_STATION_CONFIG
@@ -17,16 +15,32 @@ logging.basicConfig(
     ])
 
 # Get credentials:
-if not 'CONFIG_DIRECTORY' in os.environ:
-    raise EnvironmentError('Cannot find path netatmo configs in env var CONFIG_DIRECTORY.')
+@pytest.fixture()
+def env_password(pytestconfig):
+    """Return the password for encrypted environment variables."""
+    return pytestconfig.getoption("password")
 
-sys.path.append(os.environ['CONFIG_DIRECTORY'])
 
-from netatmo_config import config, login
+@pytest.fixture()
+def env_salt(pytestconfig):
+    """Return the salt for encrypted environment variables."""
+    return pytestconfig.getoption("salt")
 
+
+@pytest.fixture()
+def config(env_password, env_salt):
+    """Return an instance of the NetatmoConfig."""
+    return NetatmoEncryptedEnvVarConfig(
+        username_var='NETATMO_USER',
+        password_var='NETATMO_PASS',
+        client_id_var='NETATMO_ID',
+        client_secret_var='NETATMO_SECRET',
+        password=env_password,
+        salt=env_salt,
+    )
 
 @pytest.fixture
-def net():
+def net(config):
     """Return a netatmo instance."""
     return NetatmoRepository(**config)
 
@@ -38,18 +52,26 @@ def domain_mock():
 
 
 @pytest.fixture()
-def domain():
+def domain(config):
     """Create an instance of the Netatmo domain model."""
-    return NetatmoDomain(**login)
+    return NetatmoDomain(username=config.username,
+                         password=config.password,
+                         client_id=config.client_id,
+                         client_secret=config.client_secret)
 
 
 @pytest.fixture
-def net_no_login_w_call_limits():
+def net_no_login_w_call_limits(config):
     """Return a netatmo instance without login to check handling of api rate limits."""
-    net = NetatmoRepository(**login, api_limits={
-        '10 seconds': {'calls': 10, 'timespan': 10, 'wait': 0.0001},
-        '100 seconds': {'calls': 500, 'timespan': 100, 'wait': 0.001},
-    }, direct_login=False)
+    net = NetatmoRepository(
+        username=config.username,
+        password=config.password,
+        client_id=config.client_id,
+        client_secret=config.client_secret,
+        api_limits={
+            '10 seconds': {'calls': 10, 'timespan': 10, 'wait': 0.0001},
+            '100 seconds': {'calls': 500, 'timespan': 100, 'wait': 0.001},
+        }, direct_login=False)
     return net
 
 

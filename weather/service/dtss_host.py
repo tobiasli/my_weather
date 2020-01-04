@@ -42,7 +42,8 @@ class DtssHostConfigBase(ABC, RepositoryConfigBase):
 
     @property
     @abstractmethod
-    def data_collection_repositories(self) -> ty.Sequence[ty.Tuple[ty.Type[DataCollectionRepository], ty.Dict[str, ty.Any]]]:
+    def data_collection_repositories(self) -> ty.Sequence[
+        ty.Tuple[ty.Type[DataCollectionRepository], ty.Mapping[str, ty.Any]]]:
         """This property must contain the configured DataCollectionRepository's for the DtssHost."""
 
 
@@ -52,7 +53,8 @@ class DtssHostEnvironmentVariablesConfig(DtssHostConfigBase, EnvVarConfig):
     def __init__(self,
                  port_num_var: str,
                  container_directory_var: str,
-                 data_collection_repositories: ty.Sequence[ty.Tuple[ty.Type[DataCollectionRepository], ty.Dict[str, ty.Any]]]
+                 data_collection_repositories: ty.Sequence[
+                     ty.Tuple[ty.Type[DataCollectionRepository], ty.Mapping[str, ty.Any]]]
                  ) -> None:
         self.dtss_port_num_var = self.verify_env_var(port_num_var)
         self.container_directory_var = self.verify_env_var(container_directory_var)
@@ -70,8 +72,8 @@ class DtssHostEnvironmentVariablesConfig(DtssHostConfigBase, EnvVarConfig):
         return self.get_env_var(self.container_directory_var)
 
     @property
-    def data_collection_repositories(self) -> ty.Sequence[
-        ty.Tuple[ty.Type[DataCollectionRepository], ty.Dict[str, ty.Any]]]:
+    def data_collection_repositories(self) -> \
+            ty.Sequence[ty.Tuple[ty.Type[DataCollectionRepository], ty.Mapping[str, ty.Any]]]:
         """Return the choice of direct login: If we initiate the Netatmo API on construction or if we wait."""
         return self._data_collection_repositories
 
@@ -84,7 +86,7 @@ class DtssHost:
     def __init__(self,
                  port_num: int,
                  data_collection_repositories: ty.Sequence[
-                     ty.Tuple[ty.Type[DataCollectionRepository], ty.Dict[str, ty.Any]]],
+                     ty.Tuple[ty.Type[DataCollectionRepository], ty.Mapping[str, ty.Any]]],
                  container_directory: str) -> None:
         """DtssHost constructor needs a port number for the service end point. The data collection repositories are for
         collecting the source data of interest, and the container directory is where the timeseries files are stored for

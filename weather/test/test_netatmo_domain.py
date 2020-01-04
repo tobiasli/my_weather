@@ -1,17 +1,33 @@
 """Tests for the netadmo domain classes."""
+import pytest
+
 from weather.data_sources.netatmo.netatmo_domain import NetatmoDomain, NetatmoDevice
-from weather.data_sources.netatmo import get_netatmo_domain
+from weather.data_sources.netatmo.netatmo import NetatmoEncryptedEnvVarConfig
 from weather.test.bin.netatmo_test_data import MOCK_STATION_CONFIG
-import os
-import sys
 
 # Get credentials:
-if not 'CONFIG_DIRECTORY' in os.environ:
-    raise EnvironmentError('Cannot find path netatmo configs in env var CONFIG_DIRECTORY.')
+@pytest.fixture()
+def env_password(pytestconfig):
+    """Return the password for encrypted environment variables."""
+    return pytestconfig.getoption("password")
 
-sys.path.append(os.environ['CONFIG_DIRECTORY'])
 
-from netatmo_config import login
+@pytest.fixture()
+def env_salt(pytestconfig):
+    """Return the salt for encrypted environment variables."""
+    return pytestconfig.getoption("salt")
+
+@pytest.fixture()
+def config(env_password, env_salt):
+    """Return an instance of the NetatmoConfig."""
+    return NetatmoEncryptedEnvVarConfig(
+        username_var='NETATMO_USER',
+        password_var='NETATMO_PASS',
+        client_id_var='NETATMO_ID',
+        client_secret_var='NETATMO_SECRET',
+        password=env_password,
+        salt=env_salt,
+    )
 
 
 def test_station_mock_config():
@@ -37,8 +53,10 @@ def test_domain_login_mock():
     assert meas.device_id == 'bogus:station:id:1'
 
 
-def test_domain_login():
-    domain = get_netatmo_domain()
+def test_domain_login(config):
+    domain = NetatmoDomain(
+        username=config.username,
+        password=config.password,
+        client_id=config.client_id,
+        client_secret=config.client_secret)
     assert domain
-
-
