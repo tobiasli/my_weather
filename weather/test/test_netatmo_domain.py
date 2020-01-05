@@ -9,15 +9,17 @@ from weather.test.bin.netatmo_test_data import MOCK_STATION_CONFIG
 @pytest.fixture()
 def config(pytestconfig):
     """Return an instance of the NetatmoConfig."""
-    return NetatmoEncryptedEnvVarConfig(
-        username_var='NETATMO_USER',
-        password_var='NETATMO_PASS',
-        client_id_var='NETATMO_ID',
-        client_secret_var='NETATMO_SECRET',
-        password=pytestconfig.getoption("password"),
-        salt=pytestconfig.getoption("salt"),
-    )
-
+    try:
+        return NetatmoEncryptedEnvVarConfig(
+            username_var='NETATMO_USER',
+            password_var='NETATMO_PASS',
+            client_id_var='NETATMO_ID',
+            client_secret_var='NETATMO_SECRET',
+            password=pytestconfig.getoption("password"),
+            salt=pytestconfig.getoption("salt"),
+        )
+    except EnvironmentError as e:
+        return None
 
 def test_station_mock_config():
     device = NetatmoDevice(**MOCK_STATION_CONFIG['station:mock:id:1'])  # Create an instance of the first device.
@@ -43,6 +45,8 @@ def test_domain_login_mock():
 
 
 def test_domain_login(config):
+    if config is None:
+        pytest.skip(f'Netatmo is not properly configured.')
     domain = NetatmoDomain(
         username=config.username,
         password=config.password,

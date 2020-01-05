@@ -18,18 +18,23 @@ logging.basicConfig(
 @pytest.fixture()
 def config(pytestconfig):
     """Return an instance of the NetatmoConfig."""
-    return NetatmoEncryptedEnvVarConfig(
-        username_var='NETATMO_USER',
-        password_var='NETATMO_PASS',
-        client_id_var='NETATMO_ID',
-        client_secret_var='NETATMO_SECRET',
-        password=pytestconfig.getoption("password"),
-        salt=pytestconfig.getoption("salt"),
-    )
+    try:
+        return NetatmoEncryptedEnvVarConfig(
+            username_var='NETATMO_USER',
+            password_var='NETATMO_PASS',
+            client_id_var='NETATMO_ID',
+            client_secret_var='NETATMO_SECRET',
+            password=pytestconfig.getoption("password"),
+            salt=pytestconfig.getoption("salt"),
+        )
+    except EnvironmentError as e:
+        return None
 
 @pytest.fixture
 def net(config):
     """Return a netatmo instance."""
+    if config is None:
+        return None
     return NetatmoRepository(**config)
 
 
@@ -42,6 +47,8 @@ def domain_mock():
 @pytest.fixture()
 def domain(config):
     """Create an instance of the Netatmo domain model."""
+    if config is None:
+        return None
     return NetatmoDomain(username=config.username,
                          password=config.password,
                          client_id=config.client_id,
@@ -51,6 +58,8 @@ def domain(config):
 @pytest.fixture
 def net_no_login_w_call_limits(config):
     """Return a netatmo instance without login to check handling of api rate limits."""
+    if config is None:
+        pytest.skip(f'Netatmo is not properly configured.')
     net = NetatmoRepository(
         username=config.username,
         password=config.password,
@@ -64,10 +73,14 @@ def net_no_login_w_call_limits(config):
 
 
 def test_construction(net):
+    if net is None:
+        pytest.skip(f'Netatmo is not properly configured.')
     assert net.domain
 
 
 def test__get_measurements_block(net, domain):
+    if domain is None:
+        pytest.skip(f'Netatmo is not properly configured.')
     measurement = domain.get_measurement(device_name='Stua', data_type='Temperature')
     tsvec = net._get_measurements_block(device_id=measurement.device_id,
                                         module_id=measurement.module_id,
@@ -77,6 +90,8 @@ def test__get_measurements_block(net, domain):
 
 
 def test_get_measurements(net, domain):
+    if domain is None:
+        pytest.skip(f'Netatmo is not properly configured.')
     # This method uses a period longer than 1024 values, utilizing a rate limiter to not trip Netatmo api limits.
     period = UtcPeriod(Calendar().time(2019, 3, 1), Calendar().time(2019, 3, 8))
     measurement = domain.get_measurement(device_name='Stua', data_type=types.temperature.name)
@@ -89,6 +104,9 @@ def test_get_measurements(net, domain):
 
 
 def test_read_callback(net):
+    if net is None:
+        pytest.skip(f'Netatmo is not properly configured.')
+
     ts_id = create_ts_id(device_name='Stua', data_type=types.temperature)
     cal = Calendar()
     tsvec = net.read_callback(ts_ids=StringVector([ts_id]),
@@ -98,6 +116,9 @@ def test_read_callback(net):
 
 
 def test_find_callback(net):
+    if net is None:
+        pytest.skip(f'Netatmo is not properly configured.')
+
     ts_query = create_ts_query(device_name='Stua', data_type=types.humidity)
     tsiv = net.find_callback(query=ts_query)
 
