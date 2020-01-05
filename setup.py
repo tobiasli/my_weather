@@ -1,16 +1,4 @@
 #!/usr/bin/env python
-
-from distutils.core import setup
-
-setup(name='my_weather',
-      version='1.0',
-      description='Tools for managing netatmo data.',
-      author='Tobias Litherland',
-      author_email='tobiaslland@gmail.com',
-      url='https://github.com/tobiasli/weather',
-      requirements=['tregex-tobiasli', 'shyft', 'lnetatmo', 'numpy', 'shyft'],
-     )
-
 import setuptools
 
 with open("README.md", "r") as fh:
@@ -30,5 +18,5 @@ setuptools.setup(name='weather-tobiasli',
                      "License :: OSI Approved :: MIT License",
                      "Operating System :: OS Independent",
                  ],
-                 install_requires=['tregex-tobiasli', 'shyft', 'lnetatmo', 'pytest', 'numpy', 'shyft']
+                 install_requires=['tregex-tobiasli', 'lnetatmo', 'pytest', 'numpy']
                  )
