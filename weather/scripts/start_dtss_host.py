@@ -3,7 +3,7 @@ import sys
 import time
 import logging
 
-from weather.data_sources.netatmo.netatmo import NetatmoRepository, NetatmoEncryptedEnvVarConfig
+from weather.data_sources.netatmo.repository import NetatmoRepository, NetatmoEncryptedEnvVarConfig
 from weather.service.dtss_host import DtssHost, DtssHostEnvironmentVariablesConfig
 from weather.data_sources.heartbeat import create_heartbeat_request
 from weather.service.service_manager import Service, ServiceManager

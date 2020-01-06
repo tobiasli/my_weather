@@ -2,9 +2,9 @@ from shyft.api import Calendar, UtcPeriod, StringVector
 import pytest
 import logging
 
-from weather.data_sources.netatmo.netatmo import NetatmoRepository, NetatmoEncryptedEnvVarConfig
-from weather.data_sources.netatmo.netatmo_domain import types, NetatmoDomain
-from weather.data_sources.netatmo.netatmo_identifiers import create_ts_id, create_ts_query
+from weather.data_sources.netatmo.repository import NetatmoRepository, NetatmoEncryptedEnvVarConfig
+from weather.data_sources.netatmo.domain import types, NetatmoDomain
+from weather.data_sources.netatmo.identifiers import create_ts_id, create_ts_query
 from weather.test.bin.netatmo_test_data import MOCK_STATION_CONFIG
 
 logging.basicConfig(

@@ -11,10 +11,10 @@ from shyft.api import (StringVector, UtcPeriod, TimeAxisByPoints, TimeSeries, PO
                        TsInfoVector,
                        TsInfo, time, utctime_now, Calendar)
 
-from weather.data_sources.netatmo.netatmo_domain import NetatmoDomain
+from weather.data_sources.netatmo.domain import NetatmoDomain
 from weather.interfaces.config import RepositoryConfigBase, EnvVarConfig, EncryptedEnvVarConfig
 from weather.interfaces.data_collection_repository import DataCollectionRepository
-from weather.data_sources.netatmo.netatmo_identifiers import parse_ts_id, parse_ts_query
+from weather.data_sources.netatmo.identifiers import parse_ts_id, parse_ts_query
 from weather.utilities import rate_limiter
 
 DeviceMetadataType = ty.Dict[str, object]

@@ -1,7 +1,7 @@
 """Test the netatmo identifiers."""
 
-from weather.data_sources.netatmo.netatmo_identifiers import (create_ts_id, create_ts_query, parse_ts_query, parse_ts_id,
-                                                              NetatmoUrlParseError)
+from weather.data_sources.netatmo.identifiers import (create_ts_id, create_ts_query, parse_ts_query, parse_ts_id,
+                                                      NetatmoUrlParseError)
 
 
 def test_create_ts_id():

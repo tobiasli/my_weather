@@ -1,8 +1,8 @@
 """Tests for the netadmo domain classes."""
 import pytest
 
-from weather.data_sources.netatmo.netatmo_domain import NetatmoDomain, NetatmoDevice
-from weather.data_sources.netatmo.netatmo import NetatmoEncryptedEnvVarConfig
+from weather.data_sources.netatmo.domain import NetatmoDomain, NetatmoDevice
+from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
 from weather.test.bin.netatmo_test_data import MOCK_STATION_CONFIG
 
 # Get credentials:

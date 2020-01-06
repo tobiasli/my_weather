@@ -7,9 +7,9 @@ import logging
 
 from weather.service.data_collection_task import DataCollectionTask, DataCollectionPeriod
 from weather.service.service_manager import Service, ServiceManager
-from weather.data_sources.netatmo import NetatmoDomain
-from weather.data_sources.netatmo.netatmo import NetatmoEncryptedEnvVarConfig
-from weather.data_sources.netatmo.netatmo_identifiers import create_ts_netatmo
+from weather.data_sources.netatmo.domain import NetatmoDomain
+from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
+from weather.data_sources.netatmo.identifiers import create_ts_netatmo
 
 # Initialize logging
 logging.basicConfig(

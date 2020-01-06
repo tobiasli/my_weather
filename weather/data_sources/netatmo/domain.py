@@ -1,6 +1,6 @@
 """Definitions of what we can expect of information from a Netatmo configuration."""
 from weather.utilities import data_class, camel_converter
-from weather.data_sources.netatmo.netatmo_identifiers import create_ts_query, create_ts_store_id
+from weather.data_sources.netatmo.identifiers import create_ts_query, create_ts_store_id
 from typing import List, Union, Iterable, Dict, Any
 from shyft.api import time, Calendar, point_interpretation_policy as point_fx, TimeSeries
 import lnetatmo
