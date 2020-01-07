@@ -4,6 +4,8 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+print('INFO: For the package to work on ArchLinuxArm, install package python-cryptography separately from AUR.')
+
 setuptools.setup(name='weather-tobiasli',
                  version='1.0.1',
                  description='Tools for managing weather data using shyft.',
@@ -18,5 +20,5 @@ setuptools.setup(name='weather-tobiasli',
                      "License :: OSI Approved :: MIT License",
                      "Operating System :: OS Independent",
                  ],
-                 install_requires=['tregex-tobiasli', 'lnetatmo', 'pytest', 'numpy', 'python-cryptography']
+                 install_requires=['tregex-tobiasli', 'lnetatmo', 'pytest', 'numpy']
                  )
