@@ -51,7 +51,7 @@ def dtss() -> DtssHost:
 
 def test_read_callback_success(dtss):
     cal = Calendar()
-    ts_ids = ['mock1://something/1', 'mock2://something_else/2', 'mock1://something_strange/3']
+    ts_ids = ['mock1://something/1']  # , 'mock2://something_else/2', 'mock1://something_strange/3']
     expected = [1, 2, 3]
     result = dtss.read_callback(ts_ids=StringVector(ts_ids),
                                 read_period=UtcPeriod(cal.time(0), cal.time(5)))
