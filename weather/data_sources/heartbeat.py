@@ -5,7 +5,7 @@ import numpy as np
 import logging
 from typing import Sequence, Dict, TYPE_CHECKING
 
-from shyft.api import TimeSeries, StringVector, TsVector, TsInfo, TsInfoVector, UtcPeriod, POINT_INSTANT_VALUE
+from shyft.time_series import TimeSeries, StringVector, TsVector, TsInfo, TsInfoVector, UtcPeriod, POINT_INSTANT_VALUE
 
 from weather.interfaces.data_collection_repository import DataCollectionRepository
 from weather.utilities.create_ts import create_ts
@@ -43,7 +43,7 @@ class HeartbeatRepository(DataCollectionRepository):
                                                                                  read_period=period))}
 
     def read_callback(self, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
-        """This callback is passed as the default read_callback for a shyft.api.DtsServer.
+        """This callback is passed as the default read_callback for a shyft.time_series.DtsServer.
 
         Args:
             ts_ids: A sequence of strings identifying specific timeseries available from the netatmo login. Matches the
@@ -73,7 +73,7 @@ class HeartbeatRepository(DataCollectionRepository):
         return self.find_callback(query)
 
     def find_callback(self, query: str) -> TsInfoVector:
-        """This callback is passed as the default find_callback for a shyft.api.DtsServer.
+        """This callback is passed as the default find_callback for a shyft.time_series.DtsServer.
 
         Args:
             query: The url representing a relevant query for this DataCollectionRepository. Matches the formatting

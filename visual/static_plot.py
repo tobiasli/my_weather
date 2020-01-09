@@ -11,7 +11,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ])
 
-from shyft.api import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries, point_interpretation_policy
+from shyft.time_series import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries, point_interpretation_policy
 from bokeh.plotting import figure, show, output_file
 from bokeh.models import DatetimeTickFormatter, Range1d, LinearAxis
 import numpy as np

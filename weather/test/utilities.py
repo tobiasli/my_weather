@@ -1,7 +1,7 @@
 """weather.test.utilities are different functions and classes that are needed for tests."""
 
 from weather.interfaces.data_collection_repository import DataCollectionRepository
-from shyft.api import (StringVector, UtcPeriod, TsVector, TsInfoVector, TimeSeries, point_interpretation_policy, TsInfo, utctime_now,
+from shyft.time_series import (StringVector, UtcPeriod, TsVector, TsInfoVector, TimeSeries, point_interpretation_policy, TsInfo, utctime_now,
                        time)
 import urllib
 from typing import Dict, Union, List, Sequence
@@ -56,7 +56,7 @@ class MockRepository1(DataCollectionRepository):
         return cls.parse_ts_id(ts_id=query)
 
     def read_callback(self, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
-        """This callback is passed as the default read_callback for a shyft.api.DtsServer.
+        """This callback is passed as the default read_callback for a shyft.time_series.DtsServer.
 
         Args:
             ts_ids: A sequence of strings identifying specific timeseries available from the netatmo login. Matches the
@@ -74,7 +74,7 @@ class MockRepository1(DataCollectionRepository):
         return tsv
 
     def find_callback(self, query: str) -> TsInfoVector:
-        """This callback is passed as the default find_callback for a shyft.api.DtsServer.
+        """This callback is passed as the default find_callback for a shyft.time_series.DtsServer.
 
         Args:
             query: The url representing a relevant query for this DataCollectionRepository. Matches the formatting

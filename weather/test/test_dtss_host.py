@@ -7,7 +7,7 @@ import tempfile
 
 from contextlib import closing
 
-from shyft.api import Calendar, UtcPeriod, StringVector, TsVector, DtsClient, TimeSeries, time
+from shyft.time_series import Calendar, UtcPeriod, StringVector, TsVector, DtsClient, TimeSeries, time
 
 from weather.service.dtss_host import DtssHost
 from weather.data_sources.heartbeat import create_heartbeat_request

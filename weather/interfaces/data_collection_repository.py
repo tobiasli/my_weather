@@ -4,7 +4,7 @@ respectively."""
 
 from abc import abstractmethod
 
-from shyft.api import StringVector, UtcPeriod, TsVector, TsInfoVector
+from shyft.time_series import StringVector, UtcPeriod, TsVector, TsInfoVector
 from shyft.repository.interfaces import TsRepository
 
 
@@ -20,7 +20,7 @@ class DataCollectionRepository(TsRepository):
 
     @abstractmethod
     def read_callback(self, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
-        """This callback is passed as the default read_callback for a shyft.api.DtsServer.
+        """This callback is passed as the default read_callback for a shyft.time_series.DtsServer.
 
         Args:
             ts_ids: A sequence of strings identifying specific timeseries available from the netatmo login. Matches the
@@ -34,7 +34,7 @@ class DataCollectionRepository(TsRepository):
 
     @abstractmethod
     def find_callback(self, query: str) -> TsInfoVector:
-        """This callback is passed as the default find_callback for a shyft.api.DtsServer.
+        """This callback is passed as the default find_callback for a shyft.time_series.DtsServer.
 
         Args:
             query: The url representing a relevant query for this DataCollectionRepository. Matches the formatting

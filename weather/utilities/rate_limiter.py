@@ -1,4 +1,4 @@
-from shyft.api import utctime_now, time
+from shyft.time_series import utctime_now, time
 from typing import Union, Sequence, Callable
 from collections import deque
 from time import sleep

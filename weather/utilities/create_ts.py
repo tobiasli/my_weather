@@ -3,7 +3,7 @@ from typing import Union
 import random
 from math import ceil
 
-from shyft.api import (UtcPeriod, TimeSeries, TimeAxis, TimeAxisByPoints, UtcTimeVector,
+from shyft.time_series import (UtcPeriod, TimeSeries, TimeAxis, TimeAxisByPoints, UtcTimeVector,
                             point_interpretation_policy, time)
 
 Number = Union[int, float]

@@ -1,4 +1,4 @@
-from shyft.api import Calendar, UtcPeriod, StringVector
+from shyft.time_series import Calendar, UtcPeriod, StringVector
 import pytest
 import logging
 

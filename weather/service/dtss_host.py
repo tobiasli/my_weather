@@ -8,7 +8,7 @@ import urllib
 import os
 from abc import ABC, abstractmethod
 
-from shyft.api import (DtsServer, DtsClient, StringVector, TsVector, UtcPeriod, TsInfoVector)
+from shyft.time_series import (DtsServer, DtsClient, StringVector, TsVector, UtcPeriod, TsInfoVector)
 
 from weather.data_sources.heartbeat import HeartbeatRepository, create_heartbeat_request
 from weather.interfaces.data_collection_repository import DataCollectionRepository

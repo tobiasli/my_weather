@@ -7,7 +7,7 @@ from weather.data_sources.netatmo.repository import NetatmoRepository, NetatmoEn
 from weather.service.dtss_host import DtssHost, DtssHostEnvironmentVariablesConfig
 from weather.data_sources.heartbeat import create_heartbeat_request
 from weather.service.service_manager import Service, ServiceManager
-from shyft.api import DtsClient
+from shyft.time_series import DtsClient
 
 logging.basicConfig(
     level=logging.INFO,
