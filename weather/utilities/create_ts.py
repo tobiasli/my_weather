@@ -17,6 +17,4 @@ def create_ts(value: Number = random.random(), read_period: UtcPeriod = None, dt
     else:
         ta = TimeAxisByPoints(UtcTimeVector([1, 2, 3]))
 
-    print(ta)
-    print(value)
     return TimeSeries(ta, value, point_interpretation_policy.POINT_INSTANT_VALUE)

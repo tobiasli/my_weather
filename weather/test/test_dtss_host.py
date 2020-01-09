@@ -7,7 +7,7 @@ import tempfile
 
 from contextlib import closing
 
-from shyft.api import Calendar, UtcPeriod, StringVector, TsVector, DtsClient, TimeSeries
+from shyft.api import Calendar, UtcPeriod, StringVector, TsVector, DtsClient, TimeSeries, time
 
 from weather.service.dtss_host import DtssHost
 from weather.data_sources.heartbeat import create_heartbeat_request
@@ -51,10 +51,10 @@ def dtss() -> DtssHost:
 
 def test_read_callback_success(dtss):
     cal = Calendar()
-    ts_ids = ['mock1://something/1']  # , 'mock2://something_else/2', 'mock1://something_strange/3']
+    ts_ids = ['mock1://something/1', 'mock2://something_else/2', 'mock1://something_strange/3']
     expected = [1, 2, 3]
     result = dtss.read_callback(ts_ids=StringVector(ts_ids),
-                                read_period=UtcPeriod(cal.time(0), cal.time(5)))
+                                read_period=UtcPeriod(time(0), time(5)))
     assert isinstance(result, TsVector)
     for ts, value in zip(result, expected):
         assert ts.values.to_numpy()[0] == value
@@ -69,11 +69,10 @@ def test_find_callback_success(dtss):
 def test_dts_client(dtss):
     dtss.start()
     timeseries = ['mock1://something/1', 'mock2://something_else/2', 'mock1://something_strange/3']
-    cal = Calendar(3600)
     try:
         c = DtsClient(dtss.address)
         tsv_in = TsVector([TimeSeries(ts_id) for ts_id in timeseries])
-        period = UtcPeriod(cal.time(2019, 3, 1), cal.time(2019, 3, 3))
+        period = UtcPeriod(time(0), time(10))
         tsv = c.evaluate(tsv_in, period)
         assert tsv
     finally:
@@ -83,12 +82,11 @@ def test_dts_client(dtss):
 def test_dts_client_heartbeat(dtss):
     dtss.start()
 
-    cal = Calendar(3600)
     try:
         c = DtsClient(dtss.address)
         heartbeat = create_heartbeat_request('test')
         tsv_in = TsVector([TimeSeries(heartbeat)])
-        period = UtcPeriod(cal.time(2019, 3, 1), cal.time(2019, 3, 3))
+        period = UtcPeriod(time(0), time(10))
         tsv = c.evaluate(tsv_in, period)
         assert tsv
         tsiv = c.find(heartbeat)

@@ -4,7 +4,7 @@ import os
 import typing as ty
 
 from abc import abstractmethod
-from collections import Mapping
+from collections.abc import Mapping
 
 import tregex
 
