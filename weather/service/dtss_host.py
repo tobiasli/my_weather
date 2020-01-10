@@ -61,7 +61,7 @@ class DtssHostEnvironmentVariablesConfig(DtssHostConfigBase, EnvVarConfig):
                  data_collection_repositories: ty.Sequence[
                      ty.Tuple[ty.Type[DataCollectionRepository], ty.Mapping[str, ty.Any]]]
                  ) -> None:
-        self.log_file_directory_var = log_directory_var
+        self.log_directory_var = log_directory_var
         self.dtss_port_num_var = self.verify_env_var(port_num_var)
         self.container_directory_var = self.verify_env_var(container_directory_var)
 
@@ -80,7 +80,7 @@ class DtssHostEnvironmentVariablesConfig(DtssHostConfigBase, EnvVarConfig):
     @property
     def log_directory(self) -> str:
         """Return the log file directory for the services."""
-        return self.get_env_var(self.container_directory_var)
+        return self.get_env_var(self.log_directory_var)
 
     @property
     def data_collection_repositories(self) -> \
