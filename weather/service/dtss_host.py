@@ -46,6 +46,10 @@ class DtssHostConfigBase(ABC, RepositoryConfigBase):
         ty.Tuple[ty.Type[DataCollectionRepository], ty.Mapping[str, ty.Any]]]:
         """This property must contain the configured DataCollectionRepository's for the DtssHost."""
 
+    @property
+    @abstractmethod
+    def log_directory(self) -> str:
+        """Folder for containing log files from the services."""
 
 class DtssHostEnvironmentVariablesConfig(DtssHostConfigBase, EnvVarConfig):
     """Netatmo config information fetched partially from environment_variables."""
@@ -53,9 +57,11 @@ class DtssHostEnvironmentVariablesConfig(DtssHostConfigBase, EnvVarConfig):
     def __init__(self,
                  port_num_var: str,
                  container_directory_var: str,
+                 log_directory_var: str,
                  data_collection_repositories: ty.Sequence[
                      ty.Tuple[ty.Type[DataCollectionRepository], ty.Mapping[str, ty.Any]]]
                  ) -> None:
+        self.log_file_directory_var = log_directory_var
         self.dtss_port_num_var = self.verify_env_var(port_num_var)
         self.container_directory_var = self.verify_env_var(container_directory_var)
 
@@ -68,7 +74,12 @@ class DtssHostEnvironmentVariablesConfig(DtssHostConfigBase, EnvVarConfig):
 
     @property
     def container_directory(self) -> str:
-        """Return the username for the Netatmo instance."""
+        """Return path to the container directory for storing time series data."""
+        return self.get_env_var(self.container_directory_var)
+
+    @property
+    def log_directory(self) -> str:
+        """Return the log file directory for the services."""
         return self.get_env_var(self.container_directory_var)
 
     @property

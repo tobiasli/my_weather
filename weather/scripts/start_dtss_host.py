@@ -1,20 +1,15 @@
 """This script file starts the DtssHost service on a port specified in ENV."""
 import sys
+import os
 import time
 import logging
+from logging.handlers import TimedRotatingFileHandler
 
 from weather.data_sources.netatmo.repository import NetatmoRepository, NetatmoEncryptedEnvVarConfig
 from weather.service.dtss_host import DtssHost, DtssHostEnvironmentVariablesConfig
 from weather.data_sources.heartbeat import create_heartbeat_request
 from weather.service.service_manager import Service, ServiceManager
 from shyft.time_series import DtsClient
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
-    handlers=[
-        logging.StreamHandler()
-    ])
 
 # Get password and salt for decrypting environment variables.
 env_pass = sys.argv[1]
@@ -41,12 +36,26 @@ heartbeat_interval = 60 * 30
 dtss_config = DtssHostEnvironmentVariablesConfig(
     port_num_var='DTSS_PORT_NUM',
     container_directory_var='DTSS_CONTAINER_DIR',
+    log_directory_var='DTSS_LOG_DIR',
     data_collection_repositories=[
         (NetatmoRepository, netatmo_config)
     ]
 )
 
 if __name__ == '__main__':
+    # Initialize log:
+    # noinspection PyArgumentList
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
+        handlers=[
+            logging.StreamHandler(),
+            TimedRotatingFileHandler(filename=os.path.join(dtss_config.log_directory, 'dtss'),
+                                     when="d",
+                                     interval=1,
+                                     backupCount=10)
+        ])
+
     # Initialize DtssHost:
     host = DtssHost(**dtss_config)
     host.start()
