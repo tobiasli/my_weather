@@ -30,6 +30,7 @@ dtss_config = DtssHostEnvironmentVariablesConfig(
     port_num_var='DTSS_PORT_NUM',
     container_directory_var='DTSS_CONTAINER_DIR',
     log_directory_var='DTSS_LOG_DIR',
+    data_collection_repositories=[]
 )
 
 if __name__ == '__main__':
