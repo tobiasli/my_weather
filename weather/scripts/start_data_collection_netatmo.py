@@ -41,7 +41,7 @@ if __name__ == '__main__':
         format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
         handlers=[
             logging.StreamHandler(),
-            TimedRotatingFileHandler(filename=os.path.join(dtss_config.log_directory, 'dtss'),
+            TimedRotatingFileHandler(filename=os.path.join(dtss_config.log_directory, 'data_collection'),
                                      when="d",
                                      interval=1,
                                      backupCount=10)
