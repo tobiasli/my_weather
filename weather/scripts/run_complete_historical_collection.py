@@ -10,12 +10,11 @@ from logging.handlers import TimedRotatingFileHandler
 import shyft.time_series as st
 
 from weather.service.data_collection_task import DataCollectionTask, DataCollectionPeriodAbsolute
-from weather.service.service_manager import Service, ServiceManager
 from weather.service.dtss_host import DtssHostEnvironmentVariablesConfig
 from weather.data_sources.netatmo.domain import NetatmoDomain
 from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
 from weather.data_sources.netatmo.identifiers import create_ts_netatmo
-from weather.utilities.rate_limiter import RateLimiter
+
 
 # Get password and salt for decrypting environment variables.
 env_pass = sys.argv[1]
@@ -81,4 +80,6 @@ if __name__ == '__main__':
         )
 
     # Perform data collection:
+    logging.info(f'Starting complete data collection for {netatmo_complete.name} for period {netatmo_complete.read_period}')
     netatmo_complete.collect_data()
+    logging.info(f'Done with complete data collection for {netatmo_complete.name}')

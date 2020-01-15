@@ -28,7 +28,7 @@ netatmo_config = NetatmoEncryptedEnvVarConfig(
     client_secret_var='NETATMO_SECRET',
     password=env_pass,
     salt=env_salt,
-    api_limits=api_limits
+    rate_limiters=api_limits
 )
 
 
