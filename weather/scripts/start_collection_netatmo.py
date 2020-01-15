@@ -65,6 +65,10 @@ if __name__ == '__main__':
     # Initialize netatmo collection:
     read_dtss_address = f'{socket.gethostname()}:{os.environ["DTSS_PORT_NUM"]}'
 
+    from shyft.time_series import DtsClient
+
+    c = DtsClient(read_dtss_address)
+
     netatmo_short = DataCollectionTask(
         task_name='netatmo_short',
         read_dtss_address=read_dtss_address,

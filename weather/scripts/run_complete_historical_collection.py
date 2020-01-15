@@ -80,6 +80,6 @@ if __name__ == '__main__':
         )
 
     # Perform data collection:
-    logging.info(f'Starting complete data collection for {netatmo_complete.name} for period {netatmo_complete.read_period}')
+    logging.info(f'Starting complete data collection for {netatmo_complete.name} for period {netatmo_complete.read_period.period()}')
     netatmo_complete.collect_data()
     logging.info(f'Done with complete data collection for {netatmo_complete.name}')
