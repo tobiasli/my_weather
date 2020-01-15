@@ -65,7 +65,7 @@ def net_no_login_w_call_limits(config):
         password=config.password,
         client_id=config.client_id,
         client_secret=config.client_secret,
-        api_limits={
+        rate_limiters={
             '10 seconds': {'calls': 10, 'timespan': 10, 'wait': 0.0001},
             '100 seconds': {'calls': 500, 'timespan': 100, 'wait': 0.001},
         }, direct_login=False)

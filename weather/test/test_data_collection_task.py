@@ -8,7 +8,9 @@ from contextlib import closing
 import shyft.time_series as st
 
 from weather.service.dtss_host import DtssHost, DtsClient
-from weather.service.data_collection_task import DataCollectionPeriod, DataCollectionTask
+from weather.service.data_collection_task import (
+    DataCollectionPeriodRelative, DataCollectionPeriodAbsolute, DataCollectionTask
+)
 from weather.test.utilities import MockRepository1, MockRepository2
 
 # noinspection PyArgumentList
@@ -39,6 +41,28 @@ def dtss() -> DtssHost:
                                                   (MockRepository2, dict())])
 
 
+def test_data_collection_period_relative():
+    collection = DataCollectionPeriodRelative(
+        start_offset=3600,
+        wait_time=10,
+        end_offset=3600/2
+    )
+
+    assert collection.period().start - st.utctime_now()-3600 < 0.01
+    assert collection.period().end - st.utctime_now()-3600/2 < 0.01
+
+
+def test_data_collection_period_absolute():
+    cal = st.Calendar()
+    collection = DataCollectionPeriodAbsolute(
+        start=cal.time(2019, 1, 1),
+        wait_time=10,
+        end=cal.time(2019, 2, 1)
+    )
+
+    assert collection.period() == st.UtcPeriod(cal.time(2019, 1, 1), cal.time(2019, 2, 1))
+
+
 def test_read_and_store(dtss):
     dtss.start()
     try:
@@ -46,7 +70,7 @@ def test_read_and_store(dtss):
             task_name='coll_test_serv',
             read_dtss_address=dtss.address,
             read_ts=[st.TimeSeries('mock1://test/1'), st.TimeSeries('mock2://test/24')],  # Ask for data from two different repositories.
-            read_period=DataCollectionPeriod(start_offset=3600*2, end_offset=60*10, wait_time=0.5),
+            read_period=DataCollectionPeriodRelative(start_offset=3600 * 2, end_offset=60 * 10, wait_time=0.5),
             store_dtss_address=dtss.address,
             store_ts_ids=['shyft://mock1/1/1', 'shyft://mock2/2/24'])
 

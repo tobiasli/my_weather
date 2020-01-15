@@ -6,7 +6,7 @@ import socket
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
-from weather.service.data_collection_task import DataCollectionTask, DataCollectionPeriod
+from weather.service.data_collection_task import DataCollectionTask, DataCollectionPeriodRelative
 from weather.service.service_manager import Service, ServiceManager
 from weather.service.dtss_host import DtssHostEnvironmentVariablesConfig
 from weather.data_sources.netatmo.domain import NetatmoDomain
@@ -69,8 +69,8 @@ if __name__ == '__main__':
         task_name='netatmo_short',
         read_dtss_address=read_dtss_address,
         read_ts=read_timeseries,
-        read_period=DataCollectionPeriod(
-            start_offset=24 * 3600 * 2,  # Two days.
+        read_period=DataCollectionPeriodRelative(
+            start_offset=3600,  # Last hour.
             wait_time=5 * 60),  # Every 5 minutes
         store_dtss_address=read_dtss_address,
         store_ts_ids=store_ts_ids
@@ -79,8 +79,8 @@ if __name__ == '__main__':
             task_name='netatmo_long',
             read_dtss_address=read_dtss_address,
             read_ts=read_timeseries,
-            read_period=DataCollectionPeriod(
-                start_offset=365 * 24 * 3600,  # One year.
+            read_period=DataCollectionPeriodRelative(
+                start_offset=2*24*2600,  # Two days.
                 wait_time=24 * 3600),  # Every day.
             store_dtss_address=read_dtss_address,
             store_ts_ids=store_ts_ids

@@ -37,23 +37,21 @@ class NetatmoRepository(DataCollectionRepository):
                  password: str,
                  client_id: str,
                  client_secret: str,
-                 api_limits: ty.Dict[str, ty.Dict[str, int]] = None, direct_login: bool = True) -> None:
+                 rate_limiters: ty.Dict[str, ty.Dict[str, int]] = None, direct_login: bool = True) -> None:
         """
 
         :param username: Netatmo login username.
         :param password: Netatmo login password.
         :param client_id: Client id for communicating with the netatmo api.
         :param client_secret: Client id for communicating with the netatmo api.
-        :param api_limits: Parameters for the RateLimiters that make sure we do not trip api communication limits.
+        :param rate_limiters: Parameters for the RateLimiters that make sure we do not trip api communication limits.
         :param direct_login: Bool dictating if the api connection is established on init or if we want to initiate
         the api connection later.
         """
 
-        api_limits = api_limits
-
         # We don't want to breach the Netatmo API rate limiting policy, so we apply rate limiters to the functions
         # performing API calls to the Netatmo servers:
-        self.rate_limiters = [rate_limiter.RateLimiter(**api_limit) for api_limit in api_limits.values()]
+        self.rate_limiters = [rate_limiter.RateLimiter(**api_limit) for api_limit in rate_limiters.values()]
         for limiter in self.rate_limiters:
             self._get_measurements_block = limiter.rate_limit_decorator(self._get_measurements_block)
 

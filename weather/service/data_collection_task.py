@@ -1,7 +1,8 @@
 """A DataCollectionService is a service that communicates with a DtssHost and stores data to the DtssHost according
 to a set of ts_ids, timespans and intervals."""
-from typing import Sequence, Union, Optional
 import logging
+from typing import Sequence, Union, Optional
+from abc import ABC, abstractmethod
 
 import shyft.time_series as st
 
@@ -16,10 +17,19 @@ class DataCollectionServiceError(Exception):
     pass
 
 
-class DataCollectionPeriod:
+class DataCollectionPeriodBase(ABC):
+    """Template for DataCollectionPeriods"""
+
+    @abstractmethod
+    def period(self) -> st.UtcPeriod:
+        """The period we want DataCollectionTask to use."""
+        pass
+
+
+class DataCollectionPeriodRelative(DataCollectionPeriodBase):
     """Class that defines a period for which we collect data. Periods are defined as offsets from utc_now."""
 
-    def __init__(self, start_offset: TimeType, wait_time: TimeType, end_offset: Optional[TimeType] = 0, ):
+    def __init__(self, start_offset: TimeType, wait_time: TimeType, end_offset: Optional[TimeType] = 0):
         """DataCollectionPeriods are used to define the period query pattern for a DataCollectionSerive. The
         DataCollectionPeriod defines the start, stop of every individual period, and the wait time between each query.
 
@@ -38,6 +48,27 @@ class DataCollectionPeriod:
         return st.UtcPeriod(now - self.start_offset, now - self.end_offset)
 
 
+class DataCollectionPeriodAbsolute(DataCollectionPeriodBase):
+    """Class that defines a period for which we collect data. Periods are defined as offsets from utc_now."""
+
+    def __init__(self, start: TimeType, wait_time: TimeType, end: Optional[TimeType] = st.utctime_now()):
+        """DataCollectionPeriods are used to define the period query pattern for a DataCollectionSerive. The
+        DataCollectionPeriod defines the start, stop of every individual period, and the wait time between each query.
+
+        Args:
+            start_offset: The offset in seconds from now that defines the start of the queried data period.
+            end_offset: The offset in seconds from now that defines the end of the queried data period. Default=0.
+            wait_time: The wait time in seconds between individual queries.
+        """
+        self.wait_time = wait_time
+        self.start = start
+        self.end = end
+
+    def period(self) -> st.UtcPeriod:
+        """Return a UtcPeriod correctly defined for a data query right now."""
+        return st.UtcPeriod(self.start, self.end)
+
+
 class DataCollectionTask:
     """A DataCollectionTask is a service that communicates with a DtssHost and stores data to the DtssHost according
 to a set of ts_ids, timespans and intervals."""
@@ -45,7 +76,7 @@ to a set of ts_ids, timespans and intervals."""
     def __init__(self, task_name: str,
                  read_dtss_address: str,
                  read_ts: Sequence[st.TimeSeries],
-                 read_period: DataCollectionPeriod,
+                 read_period: DataCollectionPeriodBase,
                  store_dtss_address: str,
                  store_ts_ids: Sequence[str]
                  ) -> None:
