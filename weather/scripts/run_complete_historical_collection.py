@@ -64,8 +64,9 @@ if __name__ == '__main__':
     store_ts_ids = [measurement.ts_id for measurement in measurements]
 
     # Initialize netatmo collection:
+    logging.info('Attempting to create dts client.')
     read_dtss_address = f'{socket.gethostname()}:{os.environ["DTSS_PORT_NUM"]}'
-
+    logging.info('Successfully created dts client.')
     cal = st.Calendar('Europe/Oslo')
 
     netatmo_complete = DataCollectionTask(

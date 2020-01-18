@@ -74,7 +74,7 @@ if __name__ == '__main__':
         read_dtss_address=read_dtss_address,
         read_ts=read_timeseries,
         read_period=DataCollectionPeriodRelative(
-            start_offset=3600,  # Last hour.
+            start_offset=3600/2,  # Last half hour.
             wait_time=5 * 60),  # Every 5 minutes
         store_dtss_address=read_dtss_address,
         store_ts_ids=store_ts_ids
