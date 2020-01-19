@@ -90,7 +90,7 @@ if __name__ == '__main__':
             store_ts_ids=store_ts_ids
         )
 
-    services = ServiceManager()
+    services = ServiceManager(health_check_interval=60 * 10)
     services.add_service(
         Service(name=netatmo_short.name,
                 task=netatmo_short.collect_data,

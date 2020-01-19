@@ -32,7 +32,8 @@ netatmo_config = NetatmoEncryptedEnvVarConfig(
 )
 
 
-heartbeat_interval = 60 * 30
+health_check_interval = 60 * 30
+
 dtss_config = DtssHostEnvironmentVariablesConfig(
     port_num_var='DTSS_PORT_NUM',
     container_directory_var='DTSS_CONTAINER_DIR',
@@ -65,9 +66,9 @@ if __name__ == '__main__':
         Service(name='dtss_maintainer',
                 health_check_action=
                 lambda: bool(DtsClient(host.address).find(
-                    create_heartbeat_request(f'Startup script check every {heartbeat_interval} s'))),
+                    create_heartbeat_request(f'Startup script check every {health_check_interval} s'))),
                 restart_action=host.restart
-                )], health_check_frequency=heartbeat_interval)
+                )], health_check_interval=health_check_interval)
 
     sm.start_services()
     try:

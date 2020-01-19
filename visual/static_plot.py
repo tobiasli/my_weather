@@ -57,7 +57,7 @@ plot_data = [
 # ('WindStrength', 'km / h', point_fx.POINT_INSTANT_VALUE, '#8816AB'),  # purple
 
 # Get timeseries from measurements:
-client = DtsClient('localhost:20001')
+client = DtsClient(f'{os.environ["DTSS_SERVER"]}:{os.environ["DTSS_PORT_NUM"]}')
 tsv = TsVector([meas['data'].time_series for meas in plot_data])
 cal = Calendar('Europe/Oslo')
 now = utctime_now()
