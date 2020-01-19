@@ -119,8 +119,8 @@ for ts, variable in zip(data, plot_data):
              color=variable['color'],
              legend=variable['data'].data_type.name,
              y_range_name=variable['data'].data_type.name_lower)
-    fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - 0.1 * (max(y) - min(y))
-    fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + 0.1 * (max(y) - min(y))
+    fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - 0.1 * (max(y) - min(y) + 0.1*min(y))
+    fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + 0.1 * (max(y) - min(y) + 0.1*max(y))
 
 output_file(NamedTemporaryFile(prefix='netatmo_demo_plot_', suffix='.html').name)
 show(fig)
