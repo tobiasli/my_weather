@@ -76,7 +76,6 @@ def test_read_and_store(dtss):
             store_dtss_address=dtss.address,
             store_ts_ids=['shyft://mock1/1/1', 'shyft://mock2/2/24'])
 
-        now = st.utctime_now()
         collection.collect_data()
 
         data = client.evaluate(
