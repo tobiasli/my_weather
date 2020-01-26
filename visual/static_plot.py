@@ -4,14 +4,8 @@ import os
 from tempfile import NamedTemporaryFile
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
-    handlers=[
-        logging.StreamHandler()
-    ])
-
-from shyft.time_series import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries, point_interpretation_policy
+from shyft.time_series import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries, \
+    point_interpretation_policy
 from bokeh.plotting import figure, show, output_file
 from bokeh.models import DatetimeTickFormatter, Range1d, LinearAxis
 import numpy as np
@@ -19,6 +13,13 @@ import numpy as np
 from weather.data_sources.netatmo.domain import NetatmoDomain, types
 from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
 from weather.data_sources.heartbeat import create_heartbeat_request
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
+    handlers=[
+        logging.StreamHandler()
+    ])
 
 heartbeat = TimeSeries(create_heartbeat_request('static_plot'))
 
@@ -60,67 +61,76 @@ plot_data = [
 client = DtsClient(f'{os.environ["DTSS_SERVER"]}:{os.environ["DTSS_PORT_NUM"]}')
 tsv = TsVector([meas['data'].time_series for meas in plot_data])
 cal = Calendar('Europe/Oslo')
+epsilon = 0.1
+
 now = utctime_now()
 period = UtcPeriod(now - cal.DAY, now)
 data = client.evaluate(tsv, period)
 
+print(len(data[0].values))
 
-# Plotting:
-def bokeh_time_from_timestamp(cal: Calendar, timestamp) -> float:
-    """Create a localized ms timestamp from a shyft utc timestamp."""
-    return float((timestamp + cal.tz_info.base_offset()) * 1000)
+try:
 
-
-def get_xy(ts: TimeSeries) -> np.array:
-    """Method for extracting xy-data from TimeSeries"""
-    if ts.point_interpretation() == point_interpretation_policy.POINT_INSTANT_VALUE:
-        return [bokeh_time_from_timestamp(cal, t) for t in
-                ts.time_axis.time_points_double[0:-1]], ts.values.to_numpy()
-    elif ts.point_interpretation() == point_interpretation_policy.POINT_AVERAGE_VALUE:
-        values = []
-        time = []
-        for v, t1, t2 in zip(ts.values, ts.time_axis.time_points_double[0:-1], ts.time_axis.time_points_double[1:]):
-            time.append(bokeh_time_from_timestamp(cal, t1))
-            values.append(v)
-            time.append(bokeh_time_from_timestamp(cal, t2))
-            values.append(v)
-        return np.array(time), np.array(values)
+    # Plotting:
+    def bokeh_time_from_timestamp(cal: Calendar, timestamp) -> float:
+        """Create a localized ms timestamp from a shyft utc timestamp."""
+        return float((timestamp + cal.tz_info.base_offset()) * 1000)
 
 
-fig = figure(title=f'Demo plot {cal.to_string(now)}', height=400, width=800, x_axis_type='datetime')
-fig.yaxis.visible = False
-fig.xaxis.formatter = DatetimeTickFormatter(
-    months=["%Y %b"],
-    days=["%F %H:%M"],
-    hours=["%a %H:%M"],
-    minutes=["%H:%M"]
-)
-axis_switch = ['left', 'right']
-for variable in plot_data:
-    axis_side = axis_switch[0]
-    axis_switch.reverse()
-    fig.extra_y_ranges[variable['data'].data_type.name_lower] = Range1d()
-    fig.add_layout(
-        obj=LinearAxis(
-            y_range_name=variable['data'].data_type.name_lower,
-            axis_label=f"{variable['data'].data_type.name} [{variable['data'].data_type.unit}]",
-            major_label_text_color=variable['color'],
-            major_tick_line_color=variable['color'],
-            minor_tick_line_color=variable['color'],
-            axis_line_color=variable['color'],
-            axis_label_text_color=variable['color']
-        ),
-        place=axis_side
+    def get_xy(ts: TimeSeries) -> np.array:
+        """Method for extracting xy-data from TimeSeries"""
+        if ts.point_interpretation() == point_interpretation_policy.POINT_INSTANT_VALUE:
+            return [bokeh_time_from_timestamp(cal, t) for t in
+                    ts.time_axis.time_points_double[0:-1]], ts.values.to_numpy()
+        elif ts.point_interpretation() == point_interpretation_policy.POINT_AVERAGE_VALUE:
+            values = []
+            time = []
+            for v, t1, t2 in zip(ts.values, ts.time_axis.time_points_double[0:-1], ts.time_axis.time_points_double[1:]):
+                time.append(bokeh_time_from_timestamp(cal, t1))
+                values.append(v)
+                time.append(bokeh_time_from_timestamp(cal, t2))
+                values.append(v)
+            return np.array(time), np.array(values)
+
+
+    fig = figure(title=f'Demo plot {cal.to_string(now)}', height=400, width=800, x_axis_type='datetime')
+    fig.line([1, 2, 3, 4, 5], [5, 3, 4, 2, 1])
+
+    fig.yaxis.visible = False
+    fig.xaxis.formatter = DatetimeTickFormatter(
+        months=["%Y %b"],
+        days=["%F %H:%M"],
+        hours=["%a %H:%M"],
+        minutes=["%H:%M"]
     )
 
-for ts, variable in zip(data, plot_data):
-    x, y = get_xy(ts)
-    fig.line(x=x, y=y,
-             color=variable['color'],
-             legend=variable['data'].data_type.name,
-             y_range_name=variable['data'].data_type.name_lower)
-    fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - 0.1 * (max(y) - min(y))
-    fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + 0.1 * (max(y) - min(y))
+    axis_switch = ['left', 'right']
+    for variable in plot_data:
+        axis_side = axis_switch[0]
+        axis_switch.reverse()
+        fig.extra_y_ranges[variable['data'].data_type.name_lower] = Range1d()
+        fig.add_layout(
+            obj=LinearAxis(
+                y_range_name=variable['data'].data_type.name_lower,
+                axis_label=f"{variable['data'].data_type.name} [{variable['data'].data_type.unit}]",
+                major_label_text_color=variable['color'],
+                major_tick_line_color=variable['color'],
+                minor_tick_line_color=variable['color'],
+                axis_line_color=variable['color'],
+                axis_label_text_color=variable['color']
+            ),
+            place=axis_side
+        )
+    for ts, variable in zip(data, plot_data):
+        x, y = get_xy(ts)
+        fig.line(x=x, y=y,
+                 color=variable['color'],
+                 legend=variable['data'].data_type.name,
+                 y_range_name=variable['data'].data_type.name_lower)
+        # fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - 0.1 * (max(y) - min(y) - epsilon)
+        # fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + 0.1 * (max(y) - min(y) + epsilon)
 
-output_file(NamedTemporaryFile(prefix='netatmo_demo_plot_', suffix='.html').name)
-show(fig)
+    output_file(NamedTemporaryFile(prefix='netatmo_demo_plot_', suffix='.html').name)
+    show(fig)
+finally:
+    del client
