@@ -42,14 +42,14 @@ domain = NetatmoDomain(
     client_id=config.client_id,
     client_secret=config.client_secret
 )
-device = 'Stua'
-module = ''
+station = 'Eftasåsen'
+module = 'Stua'
 plot_data = [
-    {'data': domain.get_measurement(device_name=device, data_type=types.temperature.name, module_name=module),
+    {'data': domain.get_measurement(station_name=station, data_type=types.temperature.name, module_name=module),
      'color': '#E64C3E'},  # red
-    {'data': domain.get_measurement(device_name=device, data_type=types.co2.name, module_name=module),
+    {'data': domain.get_measurement(station_name=station, data_type=types.co2.name, module_name=module),
      'color': '#B0CA55'},  # green
-    {'data': domain.get_measurement(device_name=device, data_type=types.humidity.name, module_name=module),
+    {'data': domain.get_measurement(station_name=station, data_type=types.humidity.name, module_name=module),
      'color': '#0F2933'},  # dark green
 ]
 # ('Pressure', 'mbar', point_fx.POINT_INSTANT_VALUE, '#33120F'),  # brown

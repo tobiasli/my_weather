@@ -112,7 +112,7 @@ class NetatmoMeasurement:
     @property
     def ts_id(self) -> str:
         """Create the proper ts_id for the measurement."""
-        return create_ts_store_id(device_name=self.device_name,
+        return create_ts_store_id(station_name=self.device_name,
                             module_name=self.module_name,
                             data_type=self.data_type.name)
 
@@ -196,15 +196,15 @@ class NetatmoModule(data_class.DataClass):
         return self.module_name
 
 
-class NetatmoDevice(NetatmoModule):
+class NetatmoDevice(data_class.DataClass):
     """Represent metadata for a Netatmo Device. A NetatmoDevice has all the same properties as a module, but has
     some additional properties as well. It has measurements and metadata like a Module, so we subclass it from
     NetatmoModule."""
-    cipher_id: str
-    date_setup: Time
+    # cipher_id: str
+    # date_setup: Time
     last_status_store: Time
     last_upgrade: Time
-    wifi_status: bool
+    wifi_status: int
     co2_calibrating: bool
     station_name: str
     place: Dict[str, Any]
@@ -212,11 +212,18 @@ class NetatmoDevice(NetatmoModule):
     modules: List[NetatmoModule]
 
     def __init__(self, **kwargs) -> None:
+        """Contain data about the Netatmo Device. The Netatmo device is actually a subclass of a module, as it contains
+        all the information we would expect of a module. To create a more consistent structure we remove these
+        properties and add them as a seperate module"""
         modules = kwargs.pop('modules')
-        kwargs['modules'] = [NetatmoModule(**module, device=self) for module in modules]
-        super(NetatmoDevice, self).__init__(device=self, **kwargs)
-        self.measurements = [NetatmoMeasurement(device=self,
-                                                data_type=types.get_measurement(name)) for name in self.data_type]
+        device_module = dict()
+        for key in modules[0].keys():
+            if key in kwargs:
+                device_module[key] = kwargs.pop(key)
+
+        kwargs['_id'] = device_module['_id']  # Need to keep _id property.
+        kwargs['modules'] = [NetatmoModule(**module, device=self) for module in [device_module] + modules]
+        super(NetatmoDevice, self).__init__(**kwargs)
 
     def get_module_by_name(self, *, name: str) -> Union[NetatmoModule, None]:
         """Get a NetatmoDevice object by referencing he name of the device."""
@@ -225,6 +232,16 @@ class NetatmoDevice(NetatmoModule):
              for module in self.modules
              if module.name == name),
             None)
+
+    @property
+    def id(self) -> str:
+        """Represent the object id without the underscore."""
+        return self._id
+
+    @property
+    def name(self) -> str:
+        """Represent object name by module name."""
+        return self.station_name
 
 
 class NetatmoDomain:
@@ -259,34 +276,16 @@ class NetatmoDomain:
             NetatmoDevice(**device) for device in metadata.values()
         ]
 
-        self.data_source_dict: Dict[str, NetatmoModule] = {}
-        self.data_source_list: List[NetatmoModule] = [
-                                    module for device in self.devices for module in device.modules
-                                            ] + self.devices
-        for data_source in self.data_source_list:
-            if data_source.name in self.data_source_dict:
-                raise NetatmoDomainError('NetatmoDomain does currently only support modules/devices with unique names. '
-                                         f'In the current configuration, you have two modules named {data_source.name}')
-            self.data_source_dict[data_source.name] = data_source
-
-    def get_data_source_by_name(self, *, name: str) -> Union[NetatmoModule, None]:
+    def get_device_by_name(self, *, name: str) -> Union[NetatmoDevice, None]:
         """Get a NetatmoDevice object by referencing the name of the device."""
-        if name not in self.data_source_dict:
-            return None
-        return self.data_source_dict[name]
+        return next((dev for dev in self.devices if dev.station_name == name), None)
 
-    def get_measurement(self, *, device_name: str, data_type: Union[str, NetatmoMeasurementType],
-                        module_name: str = None) -> NetatmoMeasurement:
+    def get_measurement(self, *, station_name: str, module_name: str, data_type: Union[str, NetatmoMeasurementType]
+                        ) -> NetatmoMeasurement:
         """Given a device, a module (optional) and a data type, return the corresponding measurement from the domain:"""
         if isinstance(data_type, str):
             data_type = types.get_measurement(data_type)
 
-        data_source = self.get_data_source_by_name(name=device_name)
-
-        # If module_name is provided, we assume data_source is a device with module_name as a submodule.
-        # This submodule is then the source.
-        if module_name:
-            source = data_source.get_module_by_name(name=module_name)
-        else:
-            source = data_source
-        return source.get_measurement_by_name(name=data_type.name)
+        dev = self.get_device_by_name(name=station_name)
+        module = dev.get_module_by_name(name=module_name)
+        return module.get_measurement_by_name(name=data_type.name)
