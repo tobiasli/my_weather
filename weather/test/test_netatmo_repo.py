@@ -81,9 +81,9 @@ def test_construction(net):
 def test__get_measurements_block(net, domain):
     if domain is None:
         pytest.skip(f'Netatmo is not properly configured.')
-    measurement = domain.get_measurement(device_name='Stua', data_type='Temperature')
-    tsvec = net._get_measurements_block(device_id=measurement.device_id,
-                                        module_id=measurement.module_id,
+    measurement = domain.get_measurement(station_name='Eftasåsen', module_name='Stua', data_type='Temperature')
+    tsvec = net._get_measurements_block(device_id=measurement.station.id,
+                                        module_id=measurement.module.id,
                                         measurements=[measurement.data_type.name])
 
     assert tsvec[0].values.to_numpy().all()
@@ -94,9 +94,9 @@ def test_get_measurements(net, domain):
         pytest.skip(f'Netatmo is not properly configured.')
     # This method uses a period longer than 1024 values, utilizing a rate limiter to not trip Netatmo api limits.
     period = UtcPeriod(Calendar().time(2019, 3, 1), Calendar().time(2019, 3, 8))
-    measurement = domain.get_measurement(device_name='Stua', data_type=types.temperature.name)
-    tsvec = net.get_measurements(device_id=measurement.device_id,
-                                 module_id=measurement.module_id,
+    measurement = domain.get_measurement(station_name='Eftasåsen', module_name='Stua', data_type=types.temperature.name)
+    tsvec = net.get_measurements(station_id=measurement.station.id,
+                                 module_id=measurement.module.id,
                                  measurements=[measurement.data_type.name, types.humidity.name],
                                  utc_period=period)
 
@@ -107,7 +107,7 @@ def test_read_callback(net):
     if net is None:
         pytest.skip(f'Netatmo is not properly configured.')
 
-    ts_id = create_ts_id(device_name='Stua', data_type=types.temperature)
+    ts_id = create_ts_id(station_name='Eftasåsen', module_name='Stua', data_type=types.temperature)
     cal = Calendar()
     tsvec = net.read_callback(ts_ids=StringVector([ts_id]),
                               read_period=UtcPeriod(cal.time(2019, 2, 20), cal.time(2019, 2, 22)))
@@ -115,11 +115,21 @@ def test_read_callback(net):
     assert tsvec
 
 
-def test_find_callback(net):
+def test_find_callback_station(net):
     if net is None:
         pytest.skip(f'Netatmo is not properly configured.')
 
-    ts_query = create_ts_query(device_name='Stua', data_type=types.humidity)
+    ts_query = create_ts_query(station_name='Eftasåsen', module_name='Stua', data_type=types.humidity)
+    tsiv = net.find_callback(query=ts_query)
+
+    assert tsiv
+
+
+def test_find_callback_module(net):
+    if net is None:
+        pytest.skip(f'Netatmo is not properly configured.')
+
+    ts_query = create_ts_query(station_name='Eftasåsen', module_name='Ute', data_type=types.humidity)
     tsiv = net.find_callback(query=ts_query)
 
     assert tsiv

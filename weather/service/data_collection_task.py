@@ -30,8 +30,9 @@ class DataCollectionPeriodRelative(DataCollectionPeriodBase):
     """Class that defines a period for which we collect data. Periods are defined as offsets from utc_now."""
 
     def __init__(self, start_offset: TimeType, wait_time: TimeType, end_offset: Optional[TimeType] = 0):
-        """DataCollectionPeriods are used to define the period query pattern for a DataCollectionSerive. The
-        DataCollectionPeriod defines the start, stop of every individual period, and the wait time between each query.
+        """DataCollectionPeriodRelative used to define the period query pattern for a DataCollectionService. The
+        DataCollectionPeriodRelative defines the start_offset from now, the end_offset from now, and the wait time
+        between each query.
 
         Args:
             start_offset: The offset in seconds from now that defines the start of the queried data period.
@@ -120,9 +121,8 @@ to a set of ts_ids, timespans and intervals."""
     def perform_store(self, store_data: st.TsVector) -> None:
         """Perform a store query that stores the data in store_data according to the ts_names in store_ts_ids."""
         self.store_client.store_ts(
-            st.TsVector(
-                [st.TimeSeries(ts_id, ts) for ts_id, ts in zip(self.store_ts_ids, store_data)]
-            )
+            tsv=st.TsVector([st.TimeSeries(ts_id, ts) for ts_id, ts in zip(self.store_ts_ids, store_data)]),
+            overwrite_on_write=False
         )
 
     def health_check(self) -> bool:

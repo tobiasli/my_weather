@@ -1,13 +1,15 @@
 import logging
 import socket
-import os
-import sys
 import pytest
 import tempfile
+import os
 
 from contextlib import closing
 
-from shyft.time_series import Calendar, UtcPeriod, StringVector, TsVector, DtsClient, TimeSeries, time
+import numpy as np
+
+from shyft.time_series import UtcPeriod, StringVector, TsVector, DtsClient, TimeSeries, time
+import shyft.time_series as st
 
 from weather.service.dtss_host import DtssHost
 from weather.data_sources.heartbeat import create_heartbeat_request
@@ -50,7 +52,6 @@ def dtss() -> DtssHost:
 
 
 def test_read_callback_success(dtss):
-    cal = Calendar()
     ts_ids = ['mock1://something/1', 'mock2://something_else/2', 'mock1://something_strange/3']
     expected = [1, 2, 3]
     result = dtss.read_callback(ts_ids=StringVector(ts_ids),
@@ -96,3 +97,38 @@ def test_dts_client_heartbeat(dtss):
 
     finally:
         dtss.stop()
+
+
+def test_dts_client_store(dtss):
+
+
+    dtss = st.DtsServer()
+    dtss.set_listening_port(34386)
+    path = tempfile.mkdtemp(prefix='dtss_store_')
+    dtss.set_container('test', os.path.join(path, 'test'))
+    dtss.set_container('foo', os.path.join(path, 'foo'))
+    dtss.start_async()
+
+    try:
+        c = DtsClient('localhost:34386')
+
+        # Store a timeseries
+        ts = st.TimeSeries(st.TimeAxis(time(0), 1, 3), [1, 2, 3], st.POINT_AVERAGE_VALUE)
+        names = ['shyft://test/test1', 'shyft://foo/bar']
+        store = st.TsVector([st.TimeSeries(name, ts) for name in names])
+        c.store_ts(store)
+
+        # Store an extension of an existing timeseries:
+        ts = st.TimeSeries(st.TimeAxis(time(3), 1, 3), [4, 5, 6], st.POINT_AVERAGE_VALUE)
+        store = st.TsVector([st.TimeSeries(names[0], ts)])
+        c.store_ts(store, overwrite_on_write=False)
+
+        # Check that the timeseries has the expected length of union(ts1, ts2), and single write to other container:
+        data = c.evaluate(st.TsVector([st.TimeSeries(name) for name in names]), st.UtcPeriod(time(-1), time(7)))
+        assert np.all(data[0].values.to_numpy() == np.array([1, 2, 3, 4, 5, 6]))
+        assert np.all(data[1].values.to_numpy() == np.array([1, 2, 3]))
+
+    finally:
+        dtss.stop_web_api()
+        dtss.clear()
+        del dtss

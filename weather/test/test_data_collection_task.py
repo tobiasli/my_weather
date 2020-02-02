@@ -45,11 +45,11 @@ def test_data_collection_period_relative():
     collection = DataCollectionPeriodRelative(
         start_offset=3600,
         wait_time=10,
-        end_offset=3600/2
+        end_offset=3600 / 2
     )
 
-    assert collection.period().start - st.utctime_now()-3600 < 0.01
-    assert collection.period().end - st.utctime_now()-3600/2 < 0.01
+    assert collection.period().start - st.utctime_now() - 3600 < 0.01
+    assert collection.period().end - st.utctime_now() - 3600 / 2 < 0.01
 
 
 def test_data_collection_period_absolute():
@@ -65,23 +65,42 @@ def test_data_collection_period_absolute():
 
 def test_read_and_store(dtss):
     dtss.start()
+    client = DtsClient(dtss.address)
     try:
         collection = DataCollectionTask(
             task_name='coll_test_serv',
             read_dtss_address=dtss.address,
-            read_ts=[st.TimeSeries('mock1://test/1'), st.TimeSeries('mock2://test/24')],  # Ask for data from two different repositories.
-            read_period=DataCollectionPeriodRelative(start_offset=3600 * 2, end_offset=60 * 10, wait_time=0.5),
+            read_ts=[st.TimeSeries('mock1://test/1'), st.TimeSeries('mock2://test/24')],
+            # Ask for data from two different repositories.
+            read_period=DataCollectionPeriodAbsolute(start=0, end=3600, wait_time=0.5),
             store_dtss_address=dtss.address,
             store_ts_ids=['shyft://mock1/1/1', 'shyft://mock2/2/24'])
 
         collection.collect_data()
 
-        # Verify that TimeSeries now exists in dtss.store:
-        client = DtsClient(dtss.address)
-        tsiv = client.find(r'shyft://mock1/\d/\d+')
-        assert len(tsiv) == 1
-        tsiv = client.find(r'shyft://mock2/\d/\d+')
-        assert len(tsiv) == 1
+        data = client.evaluate(
+            st.TsVector([st.TimeSeries(name) for name in ['shyft://mock1/1/1', 'shyft://mock2/2/24']]),
+            st.UtcPeriod(0, 7200))
+
+        # Length of data should match seconds of 2 hours minus 10 minutes == 6600 s
+        assert len(data[0].values.to_numpy()) == 3600
+        assert data[0].time_axis.time_points_double[0] == 0
+        assert data[0].time_axis.time_points_double[-1] == 3600
+
+        # Define new read period to resemble another query.
+        collection.read_period = DataCollectionPeriodAbsolute(start=3600, end=7200, wait_time=0.5)
+
+        collection.collect_data()
+
+        # Collect the rest of the data.
+        data = client.evaluate(
+            st.TsVector([st.TimeSeries(name) for name in ['shyft://mock1/1/1', 'shyft://mock2/2/24']]),
+            st.UtcPeriod(0, 7200))
+
+        # Length of data should match seconds of 2 hours == 7200 s
+        assert len(data[0].values.to_numpy()) == 7200
+        assert data[0].time_axis.time_points_double[0] == 0
+        assert data[0].time_axis.time_points_double[-1] == 7200
 
     finally:
         dtss.stop()

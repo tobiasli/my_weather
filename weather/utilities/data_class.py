@@ -32,3 +32,6 @@ class DataClass:
         else:
             trailing = ''
         return f'{type(self).__name__}({string[0:200]}{trailing})'
+
+    def __len__(self) -> int:
+        return len(self.dict)

@@ -142,7 +142,7 @@ class NetatmoRepository(DataCollectionRepository):
         return TsVector(output)
 
     def get_measurements(self, *,
-                         device_id: str,
+                         station_id: str,
                          module_id: str,
                          measurements: ty.Sequence[str],
                          utc_period: UtcPeriod
@@ -152,7 +152,7 @@ class NetatmoRepository(DataCollectionRepository):
         data.
 
         Args:
-            device_id: Unique identifier for the netatmo device.
+            station_id: Unique identifier for the netatmo device.
             module_id: Unique identifier for the netatmo module (can be None, '').
             measurements: A ty.Sequence of strings representing the measurements we want to fetch.
             utc_period: Inclusive start/end. The period we want data for (if none, the longest possible period
@@ -168,7 +168,7 @@ class NetatmoRepository(DataCollectionRepository):
         while result_end < utc_period.end:
             utc_period = UtcPeriod(result_end, utc_period.end)  # Define a UtcPeriod for the remaining data.
 
-            result = self._get_measurements_block(device_id=device_id,
+            result = self._get_measurements_block(device_id=station_id,
                                                   module_id=module_id,
                                                   measurements=measurements,
                                                   utc_period=utc_period)
@@ -223,24 +223,26 @@ class NetatmoRepository(DataCollectionRepository):
             ts_id_props = parse_ts_id(ts_id=ts_id)
             measurement = self.domain.get_measurement(**ts_id_props)
 
-            if measurement.source_name not in data:
-                data[measurement.source_name] = []
-            data[measurement.source_name].append(
+            if measurement.module.id not in data:
+                data[measurement.module.id] = []
+            data[measurement.module.id].append(
                 dict(enum=enum, ts=None, measurement=measurement))
 
-        for source_name in data:
-            measurements = [meas['measurement'] for meas in data[source_name]]
+        for module_id in data:
+            measurements = [meas['measurement'] for meas in data[module_id]]
 
-            device_id = measurements[0].device.id
-            module_id = measurements[0].module.id if measurements[0].module else None
-            measurements = [m.data_type.name for m in measurements]
-            tsvec = self.get_measurements(device_id=device_id,
-                                          module_id=module_id,
-                                          measurements=measurements,
+            if module_id == measurements[0].station.id:  # The current module is the actual station itself.
+                module_id_arg = None
+            else:
+                module_id_arg = module_id
+            measurement_types = [m.data_type.name for m in measurements]
+            tsvec = self.get_measurements(station_id=measurements[0].station.id,
+                                          module_id=module_id_arg,
+                                          measurements=measurement_types,
                                           utc_period=read_period
                                           )
             for index, ts in enumerate(tsvec):
-                data[source_name][index]['ts'] = ts
+                data[module_id][index]['ts'] = ts
 
         # Collapse nested lists and sort by initial enumerate:
         transpose_data = []
@@ -280,10 +282,10 @@ class NetatmoRepository(DataCollectionRepository):
             name=meas.ts_id,
             point_fx=meas.data_type.point_interpretation,
             delta_t=np.nan,
-            olson_tz_id=meas.device.place['timezone'],
-            data_period=UtcPeriod(meas.source.date_setup, meas.source.dashboard_data['time_utc']),
-            created=meas.source.date_setup,
-            modified=meas.source.dashboard_data['time_utc']
+            olson_tz_id=meas.station.place['timezone'],
+            data_period=UtcPeriod(meas.module.last_setup, meas.module.last_seen),
+            created=meas.module.last_setup,
+            modified=meas.module.dashboard_data['time_utc']
         )
 
         # noinspection PyArgumentList

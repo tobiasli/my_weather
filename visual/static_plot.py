@@ -4,14 +4,8 @@ import os
 from tempfile import NamedTemporaryFile
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
-    handlers=[
-        logging.StreamHandler()
-    ])
-
-from shyft.time_series import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries, point_interpretation_policy
+from shyft.time_series import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries, \
+    point_interpretation_policy
 from bokeh.plotting import figure, show, output_file
 from bokeh.models import DatetimeTickFormatter, Range1d, LinearAxis
 import numpy as np
@@ -19,6 +13,13 @@ import numpy as np
 from weather.data_sources.netatmo.domain import NetatmoDomain, types
 from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
 from weather.data_sources.heartbeat import create_heartbeat_request
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
+    handlers=[
+        logging.StreamHandler()
+    ])
 
 heartbeat = TimeSeries(create_heartbeat_request('static_plot'))
 
@@ -41,14 +42,14 @@ domain = NetatmoDomain(
     client_id=config.client_id,
     client_secret=config.client_secret
 )
-device = 'Stua'
-module = ''
+station = 'Eftasåsen'
+module = 'Stua'
 plot_data = [
-    {'data': domain.get_measurement(device_name=device, data_type=types.temperature.name, module_name=module),
+    {'data': domain.get_measurement(station_name=station, data_type=types.temperature.name, module_name=module),
      'color': '#E64C3E'},  # red
-    {'data': domain.get_measurement(device_name=device, data_type=types.co2.name, module_name=module),
+    {'data': domain.get_measurement(station_name=station, data_type=types.co2.name, module_name=module),
      'color': '#B0CA55'},  # green
-    {'data': domain.get_measurement(device_name=device, data_type=types.humidity.name, module_name=module),
+    {'data': domain.get_measurement(station_name=station, data_type=types.humidity.name, module_name=module),
      'color': '#0F2933'},  # dark green
 ]
 # ('Pressure', 'mbar', point_fx.POINT_INSTANT_VALUE, '#33120F'),  # brown
@@ -60,6 +61,8 @@ plot_data = [
 client = DtsClient(f'{os.environ["DTSS_SERVER"]}:{os.environ["DTSS_PORT_NUM"]}')
 tsv = TsVector([meas['data'].time_series for meas in plot_data])
 cal = Calendar('Europe/Oslo')
+epsilon = 0.1
+
 now = utctime_now()
 period = UtcPeriod(now - cal.DAY, now)
 data = client.evaluate(tsv, period)
@@ -86,41 +89,45 @@ def get_xy(ts: TimeSeries) -> np.array:
             values.append(v)
         return np.array(time), np.array(values)
 
+try:
+    fig = figure(title=f'Demo plot {cal.to_string(now)}', height=400, width=800, x_axis_type='datetime')
+    fig.line([1, 2, 3, 4, 5], [5, 3, 4, 2, 1])
 
-fig = figure(title=f'Demo plot {cal.to_string(now)}', height=400, width=800, x_axis_type='datetime')
-fig.yaxis.visible = False
-fig.xaxis.formatter = DatetimeTickFormatter(
-    months=["%Y %b"],
-    days=["%F %H:%M"],
-    hours=["%a %H:%M"],
-    minutes=["%H:%M"]
-)
-axis_switch = ['left', 'right']
-for variable in plot_data:
-    axis_side = axis_switch[0]
-    axis_switch.reverse()
-    fig.extra_y_ranges[variable['data'].data_type.name_lower] = Range1d()
-    fig.add_layout(
-        obj=LinearAxis(
-            y_range_name=variable['data'].data_type.name_lower,
-            axis_label=f"{variable['data'].data_type.name} [{variable['data'].data_type.unit}]",
-            major_label_text_color=variable['color'],
-            major_tick_line_color=variable['color'],
-            minor_tick_line_color=variable['color'],
-            axis_line_color=variable['color'],
-            axis_label_text_color=variable['color']
-        ),
-        place=axis_side
+    fig.yaxis.visible = False
+    fig.xaxis.formatter = DatetimeTickFormatter(
+        months=["%Y %b"],
+        days=["%F %H:%M"],
+        hours=["%a %H:%M"],
+        minutes=["%H:%M"]
     )
 
-for ts, variable in zip(data, plot_data):
-    x, y = get_xy(ts)
-    fig.line(x=x, y=y,
-             color=variable['color'],
-             legend=variable['data'].data_type.name,
-             y_range_name=variable['data'].data_type.name_lower)
-    fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - 0.1 * (max(y) - min(y) + 0.1*min(y))
-    fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + 0.1 * (max(y) - min(y) + 0.1*max(y))
+    axis_switch = ['left', 'right']
+    for variable in plot_data:
+        axis_side = axis_switch[0]
+        axis_switch.reverse()
+        fig.extra_y_ranges[variable['data'].data_type.name_lower] = Range1d()
+        fig.add_layout(
+            obj=LinearAxis(
+                y_range_name=variable['data'].data_type.name_lower,
+                axis_label=f"{variable['data'].data_type.name} [{variable['data'].data_type.unit}]",
+                major_label_text_color=variable['color'],
+                major_tick_line_color=variable['color'],
+                minor_tick_line_color=variable['color'],
+                axis_line_color=variable['color'],
+                axis_label_text_color=variable['color']
+            ),
+            place=axis_side
+        )
+    for ts, variable in zip(data, plot_data):
+        x, y = get_xy(ts)
+        fig.line(x=x, y=y,
+                 color=variable['color'],
+                 legend=variable['data'].data_type.name,
+                 y_range_name=variable['data'].data_type.name_lower)
+        fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - 0.1 * (max(y) - min(y) - epsilon)
+        fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + 0.1 * (max(y) - min(y) + epsilon)
 
-output_file(NamedTemporaryFile(prefix='netatmo_demo_plot_', suffix='.html').name)
-show(fig)
+    output_file(NamedTemporaryFile(prefix='netatmo_demo_plot_', suffix='.html').name)
+    show(fig)
+finally:
+    del client

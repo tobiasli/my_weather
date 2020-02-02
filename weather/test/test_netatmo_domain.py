@@ -1,7 +1,7 @@
 """Tests for the netadmo domain classes."""
 import pytest
 
-from weather.data_sources.netatmo.domain import NetatmoDomain, NetatmoDevice
+from weather.data_sources.netatmo.domain import NetatmoDomain, NetatmoStation
 from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
 from weather.test.bin.netatmo_test_data import MOCK_STATION_CONFIG
 
@@ -22,26 +22,31 @@ def config(pytestconfig):
         return None
 
 def test_station_mock_config():
-    device = NetatmoDevice(**MOCK_STATION_CONFIG['station:mock:id:1'])  # Create an instance of the first device.
+    station = NetatmoStation(**MOCK_STATION_CONFIG['station:mock:id:1'])  # Create an instance of the first device.
 
-    assert device.name == 'Livingroom'
-    assert device.measurements[0].data_type.name == 'Temperature'
-    assert device.measurements[0].name == r'Superstation\Livingroom\Temperature'
+    assert station.station_name == 'Superstation'
 
-    module = device.modules[0]
-    assert module.module_name == 'Basement'
-    assert module.device.name == 'Livingroom'
+    module = station.modules[0]
+    assert module.module_name == 'Livingroom'
+    assert module.station.station_name == 'Superstation'
     assert module.measurements[0].data_type.name == 'Temperature'
-    assert module.measurements[0].name == r'Superstation\Basement\Temperature'
-    assert module.measurements[0].source_name == r'Superstation\Basement'
+    assert module.measurements[0].measurement_name == r'Superstation\Livingroom\Temperature'
+    assert module.measurements[0].module.name == r'Livingroom'
+
+    module = station.modules[1]
+    assert module.module_name == 'Basement'
+    assert module.station.station_name == 'Superstation'
+    assert module.measurements[0].data_type.name == 'Temperature'
+    assert module.measurements[0].measurement_name == r'Superstation\Basement\Temperature'
+    assert module.measurements[0].module.name == r'Basement'
 
 
 def test_domain_login_mock():
     domain = NetatmoDomain(device_metadata=MOCK_STATION_CONFIG)
 
-    assert domain.devices[0].name == 'Livingroom'
-    meas = domain.get_measurement(device_name='Livingroom', module_name='Basement', data_type='Temperature')
-    assert meas.device_id == 'bogus:station:id:1'
+    assert domain.stations[0].name == 'Superstation'
+    meas = domain.get_measurement(station_name='Superstation', module_name='Basement', data_type='Temperature')
+    assert meas.station.id == 'bogus:station:id:1'
 
 
 def test_domain_login(config):
