@@ -77,7 +77,7 @@ if __name__ == '__main__':
             read_dtss_address=read_dtss_address,
             read_ts=read_timeseries,
             read_period=DataCollectionPeriodAbsolute(
-                start=cal.time(2020, 1, 1),  # For start of operation. No specified end means now.
+                start=cal.time(2019, 3, 1),  # For start of operation. No specified end means now.
                 wait_time=24 * 3600),  # Every day, not used.
             store_dtss_address=read_dtss_address,
             store_ts_ids=store_ts_ids

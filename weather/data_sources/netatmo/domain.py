@@ -4,6 +4,7 @@ from weather.data_sources.netatmo.identifiers import create_ts_query, create_ts_
 from typing import List, Union, Iterable, Dict, Any
 from shyft.time_series import time, Calendar, point_interpretation_policy as point_fx, TimeSeries
 import lnetatmo
+from weather.utilities.ascii_clean import create_ascii_char_str_from_str
 
 TimeType = Union[float, int, time]
 Number = Union[float, int]
@@ -42,6 +43,11 @@ class NetatmoMeasurementType:
         if not isinstance(other, NetatmoMeasurementType):
             return False
         return (self.name, self.unit, self.point_interpretation) == (other.name, other.unit, other.point_interpretation)
+
+    @property
+    def name_clean(self) -> str:
+        """Return the name as a string containing only ascii letters."""
+        return create_ascii_char_str_from_str(self.name)
 
 
 class NetatmoMeasurementTypes(data_class.DataClass):
@@ -84,9 +90,9 @@ class NetatmoMeasurement:
     @property
     def ts_id(self) -> str:
         """Create the proper ts_id for the measurement."""
-        return create_ts_store_id(station_name=self.station.name,
-                                  module_name=self.module.name,
-                                  data_type=self.data_type.name)
+        return create_ts_store_id(station_name=self.station.name_clean,
+                                  module_name=self.module.name_clean,
+                                  data_type=self.data_type.name_clean)
 
     @property
     def ts_query(self) -> str:
@@ -98,6 +104,7 @@ class NetatmoMeasurement:
     def time_series(self) -> TimeSeries:
         """Return a TimeSeries representation of measurement."""
         return TimeSeries(self.ts_id)
+
 
 
 _measurements = [
@@ -168,6 +175,11 @@ class NetatmoModule(data_class.DataClass):
         """Represent object name by module name."""
         return self.module_name
 
+    @property
+    def name_clean(self) -> str:
+        """Return the name as a string containing only ascii letters."""
+        return create_ascii_char_str_from_str(self.name)
+
 
 class NetatmoStation(data_class.DataClass):
     """Represent metadata for a Netatmo Device. A NetatmoDevice has all the same properties as a module, but has
@@ -220,6 +232,12 @@ class NetatmoStation(data_class.DataClass):
     def name(self) -> str:
         """Represent object name by module name."""
         return self.station_name
+
+    @property
+    def name_clean(self) -> str:
+        """Return the name as a string containing only ascii letters."""
+        return create_ascii_char_str_from_str(self.name)
+
 
 
 class NetatmoDomain:
