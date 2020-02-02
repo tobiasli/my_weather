@@ -17,15 +17,15 @@ class NetatmoUrlParseError(Exception):
 
 def create_ts_store(measurement: "NetatmoMeasurement") -> st.TimeSeries:
     """From a NetatmoMeasurement, create a st.TimeSeries referencing DtssHost storage data."""
-    return st.TimeSeries(create_ts_store_id(station_name=measurement.device.station_name,
-                                            module_name=measurement.module_name,
+    return st.TimeSeries(create_ts_store_id(station_name=measurement.station.station_name,
+                                            module_name=measurement.module.name,
                                             data_type=measurement.data_type.name))
 
 
 def create_ts_netatmo(measurement: "NetatmoMeasurement") -> st.TimeSeries:
     """From a NetatmoMeasurement, create a st.TimeSeries referencing Netatmo API data."""
-    return st.TimeSeries(create_ts_id(station_name=measurement.device.station_name,
-                                      module_name=measurement.module_name,
+    return st.TimeSeries(create_ts_id(station_name=measurement.station.station_name,
+                                      module_name=measurement.module.name,
                                       data_type=measurement.data_type.name))
 
 

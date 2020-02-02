@@ -56,7 +56,7 @@ if __name__ == '__main__':
         client_secret=netatmo_config.client_secret)
 
     # Create a list of ts_ids to read and a corresponding list of ts_ids to store.:
-    measurements = [measurement for source in domain.data_source_list for measurement in source.measurements]
+    measurements = [measurement for station in domain.stations for module in station.modules for measurement in module.measurements]
     read_timeseries = [create_ts_netatmo(measurement) for measurement in measurements]
     store_ts_ids = [measurement.ts_id for measurement in measurements]
 

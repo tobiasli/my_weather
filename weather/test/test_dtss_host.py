@@ -99,7 +99,7 @@ def test_dts_client_heartbeat(dtss):
         dtss.stop()
 
 
-def test_dts_client_store(dtss):
+def test_dts_client_store():
 
 
     dtss = st.DtsServer()

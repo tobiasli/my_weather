@@ -3,6 +3,7 @@ import sys
 import os
 from tempfile import NamedTemporaryFile
 import logging
+import socket
 
 from shyft.time_series import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries, \
     point_interpretation_policy
@@ -58,13 +59,14 @@ plot_data = [
 # ('WindStrength', 'km / h', point_fx.POINT_INSTANT_VALUE, '#8816AB'),  # purple
 
 # Get timeseries from measurements:
-client = DtsClient(f'{os.environ["DTSS_SERVER"]}:{os.environ["DTSS_PORT_NUM"]}')
+# client = DtsClient(f'{os.environ["DTSS_SERVER"]}:{os.environ["DTSS_PORT_NUM"]}')
+client = DtsClient(f'{socket.gethostname()}:{os.environ["DTSS_PORT_NUM"]}')
 tsv = TsVector([meas['data'].time_series for meas in plot_data])
 cal = Calendar('Europe/Oslo')
 epsilon = 0.1
 
 now = utctime_now()
-period = UtcPeriod(now - cal.DAY, now)
+period = UtcPeriod(now - cal.DAY*3, now)
 data = client.evaluate(tsv, period)
 
 
@@ -90,7 +92,7 @@ def get_xy(ts: TimeSeries) -> np.array:
         return np.array(time), np.array(values)
 
 try:
-    fig = figure(title=f'Demo plot {cal.to_string(now)}', height=400, width=800, x_axis_type='datetime')
+    fig = figure(title=f'Demo plot {cal.to_string(now)}', height=400, width=1400, x_axis_type='datetime')
     fig.line([1, 2, 3, 4, 5], [5, 3, 4, 2, 1])
 
     fig.yaxis.visible = False
@@ -102,6 +104,8 @@ try:
     )
 
     axis_switch = ['left', 'right']
+
+    # Create axes:
     for variable in plot_data:
         axis_side = axis_switch[0]
         axis_switch.reverse()
@@ -118,14 +122,20 @@ try:
             ),
             place=axis_side
         )
+
+    # Plot data:
+    x_ranges = []
     for ts, variable in zip(data, plot_data):
         x, y = get_xy(ts)
+        x_ranges.extend([min(x), max(x)])
         fig.line(x=x, y=y,
                  color=variable['color'],
                  legend=variable['data'].data_type.name,
                  y_range_name=variable['data'].data_type.name_lower)
-        fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - 0.1 * (max(y) - min(y) - epsilon)
-        fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + 0.1 * (max(y) - min(y) + epsilon)
+        fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - epsilon * (max(y) - min(y))
+        fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + epsilon * (max(y) - min(y))
+
+    fig.x_range = Range1d(bokeh_time_from_timestamp(cal, period.start), bokeh_time_from_timestamp(cal, period.end))
 
     output_file(NamedTemporaryFile(prefix='netatmo_demo_plot_', suffix='.html').name)
     show(fig)
