@@ -286,8 +286,8 @@ class NetatmoRepository(DataCollectionRepository):
             A sequence of results matching the query.
         """
         info = parse_ts_query(ts_query=query)
-
-        meas = self.domain.get_measurement(**info)
+        domain = self.create_netatmo_connection()[1]
+        meas = domain.get_measurement(**info)
 
         # noinspection PyArgumentList
         tsi = TsInfo(
