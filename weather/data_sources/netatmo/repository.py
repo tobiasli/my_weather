@@ -8,8 +8,8 @@ import logging
 import numpy as np
 import lnetatmo
 from shyft.time_series import (StringVector, UtcPeriod, TimeAxisByPoints, TimeSeries, POINT_INSTANT_VALUE, TsVector,
-                       TsInfoVector,
-                       TsInfo, time, utctime_now, Calendar)
+                               TsInfoVector,
+                               TsInfo, time, utctime_now, Calendar)
 
 from weather.data_sources.netatmo.domain import NetatmoDomain
 from weather.interfaces.config import RepositoryConfigBase, EnvVarConfig, EncryptedEnvVarConfig
@@ -37,7 +37,7 @@ class NetatmoRepository(DataCollectionRepository):
                  password: str,
                  client_id: str,
                  client_secret: str,
-                 rate_limiters: ty.Dict[str, ty.Dict[str, int]] = None, direct_login: bool = True) -> None:
+                 rate_limiters: ty.Dict[str, ty.Dict[str, int]] = None) -> None:
         """
 
         :param username: Netatmo login username.
@@ -49,26 +49,31 @@ class NetatmoRepository(DataCollectionRepository):
         the api connection later.
         """
 
+        self.username = username
+        self.password = password
+        self.client_id = client_id
+        self.client_secret = client_secret
+
         # We don't want to breach the Netatmo API rate limiting policy, so we apply rate limiters to the functions
         # performing API calls to the Netatmo servers:
         self.rate_limiters = [rate_limiter.RateLimiter(**api_limit) for api_limit in rate_limiters.values()]
         for limiter in self.rate_limiters:
             self._get_measurements_block = limiter.rate_limit_decorator(self._get_measurements_block)
 
-        self.auth: lnetatmo.ClientAuth = None
-        self.device_data: lnetatmo.WeatherStationData = None
-        self.domain: NetatmoDomain = None
-
-        if direct_login:  # Sometimes we want to use methods that don't need login.
-            self.auth = lnetatmo.ClientAuth(clientId=client_id, clientSecret=client_secret, username=username,
-                                            password=password,
-                                            scope='read_station')
-            self.device_data = lnetatmo.WeatherStationData(self.auth)
-
-            self.domain = NetatmoDomain(self.device_data.stations)
-
         # noinspection PyArgumentList
         self.utc = Calendar()
+
+    def create_netatmo_connection(self) -> ty.Tuple[lnetatmo.WeatherStationData, NetatmoDomain]:
+        """Refresh the netatmo connection."""
+        auth = lnetatmo.ClientAuth(clientId=self.client_id,
+                                   clientSecret=self.client_secret,
+                                   username=self.username,
+                                   password=self.password,
+                                   scope='read_station')
+        device_data = lnetatmo.WeatherStationData(auth)
+        domain = NetatmoDomain(device_data.stations)
+
+        return device_data, domain
 
     def wait_for_rate_limiters(self) -> None:
         """Check with the rate limiters, and wait if needed."""
@@ -86,6 +91,7 @@ class NetatmoRepository(DataCollectionRepository):
         return [np.nan if value is None else value for value in values]
 
     def _get_measurements_block(self, *,
+                                device_data: lnetatmo.WeatherStationData,
                                 device_id: str,
                                 module_id: str,
                                 measurements: ty.Sequence[str],
@@ -115,7 +121,7 @@ class NetatmoRepository(DataCollectionRepository):
 
         measurement_types_str = ','.join([m for m in measurements])
 
-        data = self.device_data.getMeasure(
+        data = device_data.getMeasure(
             device_id=device_id,
             module_id=module_id,
             scale='max',
@@ -142,6 +148,7 @@ class NetatmoRepository(DataCollectionRepository):
         return TsVector(output)
 
     def get_measurements(self, *,
+                         device_data: lnetatmo.WeatherStationData,
                          station_id: str,
                          module_id: str,
                          measurements: ty.Sequence[str],
@@ -168,10 +175,12 @@ class NetatmoRepository(DataCollectionRepository):
         while result_end < utc_period.end:
             utc_period = UtcPeriod(result_end, utc_period.end)  # Define a UtcPeriod for the remaining data.
 
-            result = self._get_measurements_block(device_id=station_id,
-                                                  module_id=module_id,
-                                                  measurements=measurements,
-                                                  utc_period=utc_period)
+            result = self._get_measurements_block(
+                device_data=device_data,
+                device_id=station_id,
+                module_id=module_id,
+                measurements=measurements,
+                utc_period=utc_period)
 
             if not any([bool(ts) for ts in result]):  # None data in period. Return blank.
                 break
@@ -218,10 +227,12 @@ class NetatmoRepository(DataCollectionRepository):
         Returns:
             A TsVector containing the resulting timeseries containing data enough to cover the query period.
         """
+
+        device_data, domain = self.create_netatmo_connection()
         data = dict()  # Group ts_ids by repo.name (scheme).
         for enum, ts_id in enumerate(ts_ids):
             ts_id_props = parse_ts_id(ts_id=ts_id)
-            measurement = self.domain.get_measurement(**ts_id_props)
+            measurement = domain.get_measurement(**ts_id_props)
 
             if measurement.module.id not in data:
                 data[measurement.module.id] = []
@@ -236,7 +247,8 @@ class NetatmoRepository(DataCollectionRepository):
             else:
                 module_id_arg = module_id
             measurement_types = [m.data_type.name for m in measurements]
-            tsvec = self.get_measurements(station_id=measurements[0].station.id,
+            tsvec = self.get_measurements(device_data=device_data,
+                                          station_id=measurements[0].station.id,
                                           module_id=module_id_arg,
                                           measurements=measurement_types,
                                           utc_period=read_period
