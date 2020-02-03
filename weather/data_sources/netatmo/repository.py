@@ -327,7 +327,7 @@ class NetatmoRepository(DataCollectionRepository):
 class NetatmoConfigBase(ABC, RepositoryConfigBase):
     """Metaclass defining the properties that are expected from a NetatmoConfig."""
 
-    _unpack_props = ['username', 'password', 'client_id', 'client_secret', 'rate_limiters', 'direct_login']
+    _unpack_props = ['username', 'password', 'client_id', 'client_secret', 'rate_limiters']
 
     @property
     @abstractmethod
@@ -354,11 +354,6 @@ class NetatmoConfigBase(ABC, RepositoryConfigBase):
     def rate_limiters(self) -> ty.Dict[str, ty.Dict[str, int]]:
         """This property must contain the optional api limits for Netatmo."""
 
-    @property
-    @abstractmethod
-    def direct_login(self) -> bool:
-        """This property must contain the optional direct_login for Netatmo."""
-
 
 class NetatmoEnvVarConfig(NetatmoConfigBase, EnvVarConfig):
     """Netatmo config information fetched partially from environment_variables."""
@@ -369,14 +364,12 @@ class NetatmoEnvVarConfig(NetatmoConfigBase, EnvVarConfig):
                  client_id_var: str,
                  client_secret_var: str,
                  rate_limiters: ty.Dict[str, ty.Dict[str, int]] = None,
-                 direct_login: bool = True
                  ) -> None:
         self.username_var = self.verify_env_var(username_var)
         self.password_var = self.verify_env_var(password_var)
         self.client_id_var = self.verify_env_var(client_id_var)
         self.client_secret_var = self.verify_env_var(client_secret_var)
 
-        self._direct_login = direct_login
         self._rate_limiters = rate_limiters or {}
 
     @property
@@ -400,11 +393,6 @@ class NetatmoEnvVarConfig(NetatmoConfigBase, EnvVarConfig):
         return self.get_env_var(self.client_secret_var)
 
     @property
-    def direct_login(self) -> bool:
-        """Return the choice of direct login: If we initiate the Netatmo API on construction or if we wait."""
-        return self._direct_login
-
-    @property
     def rate_limiters(self) -> ty.Dict[str, ty.Dict[str, int]]:
         """Return the api limits for the RateLimiter for the Netatmo instance."""
         return self._rate_limiters
@@ -420,15 +408,13 @@ class NetatmoEncryptedEnvVarConfig(NetatmoConfigBase, EncryptedEnvVarConfig):
                  client_secret_var: str,
                  password: str,
                  salt: str,
-                 rate_limiters: ty.Dict[str, ty.Dict[str, int]] = None,
-                 direct_login: bool = True
+                 rate_limiters: ty.Dict[str, ty.Dict[str, int]] = None
                  ) -> None:
         self.username_var = self.verify_env_var(username_var)
         self.password_var = self.verify_env_var(password_var)
         self.client_id_var = self.verify_env_var(client_id_var)
         self.client_secret_var = self.verify_env_var(client_secret_var)
 
-        self._direct_login = direct_login
         self._rate_limiters = rate_limiters or {}
 
         super(NetatmoEncryptedEnvVarConfig, self).__init__(password=password, salt=salt)
@@ -452,11 +438,6 @@ class NetatmoEncryptedEnvVarConfig(NetatmoConfigBase, EncryptedEnvVarConfig):
     def client_secret(self) -> str:
         """Return the client_secret for the Netatmo instance."""
         return self.get_env_var(self.client_secret_var)
-
-    @property
-    def direct_login(self) -> bool:
-        """Return the choice of direct login: If we initiate the Netatmo API on construction or if we wait."""
-        return self._direct_login
 
     @property
     def rate_limiters(self) -> ty.Dict[str, ty.Dict[str, int]]:
