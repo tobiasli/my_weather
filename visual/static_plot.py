@@ -59,8 +59,8 @@ plot_data = [
 # ('WindStrength', 'km / h', point_fx.POINT_INSTANT_VALUE, '#8816AB'),  # purple
 
 # Get timeseries from measurements:
-# client = DtsClient(f'{os.environ["DTSS_SERVER"]}:{os.environ["DTSS_PORT_NUM"]}')
-client = DtsClient(f'{socket.gethostname()}:{os.environ["DTSS_PORT_NUM"]}')
+client = DtsClient(f'{os.environ["DTSS_SERVER"]}:{os.environ["DTSS_PORT_NUM"]}')
+# client = DtsClient(f'{socket.gethostname()}:{os.environ["DTSS_PORT_NUM"]}')
 tsv = TsVector([meas['data'].time_series for meas in plot_data])
 cal = Calendar('Europe/Oslo')
 epsilon = 0.1

@@ -17,8 +17,8 @@ env_salt = sys.argv[2]
 
 api_limits = {
         # name of limit: {max calls within span, timespan in sec, seconds wait when limit is met.
-        '10 seconds 50 actions': {'action_limit': 50, 'timespan': 10, 'wait_time': 1},  # Max netatmo api calls 50 pr 10 seconds.
-        '1 hour 500 actions': {'action_limit': 500, 'timespan': 3600, 'wait_time': 5*60},  # Max netatmo api calls 500 pr hour.
+        '10 seconds 50 actions': {'action_limit': 45, 'timespan': 10, 'wait_time': 1},  # Max netatmo api calls 50 pr 10 seconds, subtract 10% for good measure.
+        '1 hour 500 actions': {'action_limit': 450, 'timespan': 3600, 'wait_time': 5*60},  # Max netatmo api calls 500 pr hour, subtract 10% for good measure.
     }
 
 netatmo_config = NetatmoEncryptedEnvVarConfig(

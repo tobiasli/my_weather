@@ -4,7 +4,7 @@ from weather.data_sources.netatmo.identifiers import create_ts_query, create_ts_
 from typing import List, Union, Iterable, Dict, Any
 from shyft.time_series import time, Calendar, point_interpretation_policy as point_fx, TimeSeries
 import lnetatmo
-from weather.utilities.ascii_clean import create_ascii_char_str_from_str
+from weather.utilities.ascii_clean import create_ascii_str_from_str
 
 TimeType = Union[float, int, time]
 Number = Union[float, int]
@@ -47,7 +47,7 @@ class NetatmoMeasurementType:
     @property
     def name_clean(self) -> str:
         """Return the name as a string containing only ascii letters."""
-        return create_ascii_char_str_from_str(self.name)
+        return create_ascii_str_from_str(self.name)
 
 
 class NetatmoMeasurementTypes(data_class.DataClass):
@@ -178,7 +178,7 @@ class NetatmoModule(data_class.DataClass):
     @property
     def name_clean(self) -> str:
         """Return the name as a string containing only ascii letters."""
-        return create_ascii_char_str_from_str(self.name)
+        return create_ascii_str_from_str(self.name)
 
 
 class NetatmoStation(data_class.DataClass):
@@ -236,7 +236,7 @@ class NetatmoStation(data_class.DataClass):
     @property
     def name_clean(self) -> str:
         """Return the name as a string containing only ascii letters."""
-        return create_ascii_char_str_from_str(self.name)
+        return create_ascii_str_from_str(self.name)
 
 
 
