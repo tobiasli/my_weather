@@ -5,12 +5,11 @@ from tempfile import NamedTemporaryFile
 import logging
 import socket
 
-from shyft.time_series import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries, \
-    point_interpretation_policy
+from shyft.time_series import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries
 from bokeh.plotting import figure, show, output_file
 from bokeh.models import DatetimeTickFormatter, Range1d, LinearAxis
-import numpy as np
 
+from visual.utils import bokeh_time_from_timestamp, get_xy
 from weather.data_sources.netatmo.domain import NetatmoDomain, types
 from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
 from weather.data_sources.heartbeat import create_heartbeat_request
@@ -69,28 +68,6 @@ now = utctime_now()
 period = UtcPeriod(now - cal.DAY*3, now)
 data = client.evaluate(tsv, period)
 
-
-# Plotting:
-def bokeh_time_from_timestamp(cal: Calendar, timestamp) -> float:
-    """Create a localized ms timestamp from a shyft utc timestamp."""
-    return float((timestamp + cal.tz_info.base_offset()) * 1000)
-
-
-def get_xy(ts: TimeSeries) -> np.array:
-    """Method for extracting xy-data from TimeSeries"""
-    if ts.point_interpretation() == point_interpretation_policy.POINT_INSTANT_VALUE:
-        return [bokeh_time_from_timestamp(cal, t) for t in
-                ts.time_axis.time_points_double[0:-1]], ts.values.to_numpy()
-    elif ts.point_interpretation() == point_interpretation_policy.POINT_AVERAGE_VALUE:
-        values = []
-        time = []
-        for v, t1, t2 in zip(ts.values, ts.time_axis.time_points_double[0:-1], ts.time_axis.time_points_double[1:]):
-            time.append(bokeh_time_from_timestamp(cal, t1))
-            values.append(v)
-            time.append(bokeh_time_from_timestamp(cal, t2))
-            values.append(v)
-        return np.array(time), np.array(values)
-
 try:
     fig = figure(title=f'Demo plot {cal.to_string(now)}', height=400, width=1400, x_axis_type='datetime')
     fig.line([1, 2, 3, 4, 5], [5, 3, 4, 2, 1])
@@ -126,7 +103,7 @@ try:
     # Plot data:
     x_ranges = []
     for ts, variable in zip(data, plot_data):
-        x, y = get_xy(ts)
+        x, y = get_xy(cal, ts)
         x_ranges.extend([min(x), max(x)])
         fig.line(x=x, y=y,
                  color=variable['color'],
