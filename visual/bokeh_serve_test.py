@@ -33,10 +33,6 @@ class DummyData:
         return out
 
 
-TEMP_DATA = DummyData()
-CO2_DATA = DummyData(start=600, inc=100)
-
-
 class DashboardBase:
     def __init__(self,
                  source: ColumnDataSource,
@@ -137,6 +133,10 @@ class DashboardTimeSeriesMini(DashboardBase):
 class TestApp:
 
     def __init__(self) -> None:
+
+        self.TEMP_DATA = DummyData()
+        self.CO2_DATA = DummyData(start=600, inc=100)
+
         self.temp_source = ColumnDataSource({'time': [], 'value': [], 'color': []})
         self.co2_source = ColumnDataSource({'time': [], 'value': [], 'color': []})
 
@@ -196,14 +196,14 @@ class TestApp:
         )
 
     def refresh_data(self) -> None:
-        temp = TEMP_DATA.next()
+        temp = self.TEMP_DATA.next()
         new = {'value': [temp['current']],
                'time': [temp['time']],
                'color': [self.temp_icon.color_selector(temp['current'])]
                }
         self.temp_source.stream(new, 100)
 
-        co2 = CO2_DATA.next()
+        co2 = self.CO2_DATA.next()
         new = {'value': [co2['current']],
                'time': [co2['time']],
                'color': [self.co2_icon.color_selector(co2['current'])]
