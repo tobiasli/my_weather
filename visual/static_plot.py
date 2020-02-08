@@ -66,7 +66,7 @@ cal = Calendar('Europe/Oslo')
 epsilon = 0.1
 
 now = utctime_now()
-period = UtcPeriod(now - cal.DAY*3, now)
+period = UtcPeriod(now - cal.DAY, now)
 data = client.evaluate(tsv, period)
 
 
