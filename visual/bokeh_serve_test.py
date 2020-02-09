@@ -51,7 +51,7 @@ class DashboardIcon(DashboardBase):
     _color_lookup = {
         'blue': 'primary',
         'red': 'danger',
-        'yellow': 'warning',
+        'orange': 'warning',
         'green': 'success'
     }
 
@@ -169,7 +169,7 @@ class TestApp:
             if value > 1000:
                 return 'red'
             elif value > 600:
-                return 'yellow'
+                return 'orange'
             else:
                 return 'green'
 
@@ -233,6 +233,6 @@ class TestApp:
 
 apps = {'/test': Application(FunctionHandler(TestApp()))}
 
-server = Server(apps, port=5000, log_level='debug', allow_websocket_origin=['10.0.0.26:5000'])
+server = Server(apps, port=5000, log_level='debug', allow_websocket_origin=['10.0.0.80:5000'])
 server.io_loop.start()
 server.show('/test')
