@@ -95,10 +95,12 @@ class DashboardTimeSeriesMini(DashboardBase):
                  source_time_key: str,
                  source_color_key: str,
                  additional_annotations: ty.Sequence[Annotation],
+                 minimum_range: ty.Sequence[Number],
                  **kwargs) -> None:
         self.source_time_key = source_time_key
         self.source_color_key = source_color_key
         self.additional_annotations = additional_annotations
+        self.minimum_range = minimum_range or list()
         super(DashboardTimeSeriesMini, self).__init__(source, source_value_key)
 
         self.fig = figure(
@@ -112,18 +114,21 @@ class DashboardTimeSeriesMini(DashboardBase):
                         size=2)
         for annotation in self.additional_annotations:
             self.fig.add_layout(annotation)
-        self.fig.y_range = Range1d(-1, 1)
+        if self.minimum_range:
+            self.fig.y_range = Range1d(*self.minimum_range)
         self.fig.toolbar.logo = None
         self.fig.toolbar_location = None
 
     def update(self) -> None:
         maximum = max(self.source.data[self.source_value_key])
         minimum = min(self.source.data[self.source_value_key])
-        upper = max(np.ceil(maximum + 0.1 * abs(maximum)), 1)
-        lower = min(np.floor(minimum - 0.1 * abs(minimum)), -1)
 
-        self.fig.y_range.start = lower
-        self.fig.y_range.end = upper
+        if self.minimum_range:
+            upper = max(np.ceil(maximum + 0.1 * abs(maximum)), self.minimum_range[1])
+            lower = min(np.floor(minimum - 0.1 * abs(minimum)), self.minimum_range[0])
+
+            self.fig.y_range.start = lower
+            self.fig.y_range.end = upper
 
     @property
     def layout(self) -> Widget:
@@ -162,7 +167,8 @@ class TestApp:
             source_color_key='color',
             height=125,
             width=200,
-            additional_annotations=[Span(dimension='width', location=0)]
+            additional_annotations=[Span(dimension='width', location=0)],
+            minimum_range=[-1, 1]
         )
 
         def co2_icon_color(value: Number) -> str:
@@ -192,7 +198,8 @@ class TestApp:
             additional_annotations=[
                 Span(dimension='width', location=1000),
                 Span(dimension='width', location=600),
-            ]
+            ],
+            minimum_range=[300, 700]
         )
 
     def refresh_data(self) -> None:
