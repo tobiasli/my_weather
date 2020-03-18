@@ -212,14 +212,18 @@ class TestApp:
 
         station = 'Eftasåsen'
         module = 'Stua'
-        self.temp = DtssData(client=client,
-                             time_series=domain.get_measurement(station_name=station, data_type=types.temperature.name,
+        self.temp_indoor = DtssData(client=client,
+                                    time_series=domain.get_measurement(station_name=station, data_type=types.temperature.name,
                                                                 module_name=module).time_series)
+        self.temp_outdoor = DtssData(client=client,
+                                    time_series=domain.get_measurement(station_name=station, data_type=types.temperature.name,
+                                                                module_name='Ute').time_series)
         self.co2 = DtssData(client=client,
                             time_series=domain.get_measurement(station_name=station, data_type=types.co2.name,
                                                                module_name=module).time_series)
 
-        self.temp_source = ColumnDataSource({'time': [], 'value': [], 'color': []})
+        self.temp_indoor_source = ColumnDataSource({'time': [], 'value': [], 'color': []})
+        self.temp_outdoor_source = ColumnDataSource({'time': [], 'value': [], 'color': []})
         self.co2_source = ColumnDataSource({'time': [], 'value': [], 'color': []})
 
         def temp_icon_color(value: Number) -> str:
@@ -228,8 +232,8 @@ class TestApp:
             else:
                 return 'blue'
 
-        self.temp_icon = DashboardIcon(
-            source=self.temp_source,
+        self.temp_indoor_icon = DashboardIcon(
+            source=self.temp_indoor_source,
             source_value_key='value',
             height=100,
             width=100,
@@ -237,8 +241,31 @@ class TestApp:
             text_formatter=lambda value: f'\n{value:0.2f} °C'
         )
 
-        self.temp_ts = DashboardTimeSeriesMini(
-            source=self.temp_source,
+        self.temp_indoor_ts = DashboardTimeSeriesMini(
+            source=self.temp_indoor_source,
+            source_value_key='value',
+            source_time_key='time',
+            source_color_key='color',
+            height=125,
+            width=200,
+            additional_annotations=[
+                BoxAnnotation(bottom=0, fill_alpha=0.1, fill_color='red'),
+                BoxAnnotation(top=0, fill_alpha=0.1, fill_color='blue'),
+            ],
+            minimum_range=[-5, 5]
+        )
+
+        self.temp_outdoor_icon = DashboardIcon(
+            source=self.temp_outdoor_source,
+            source_value_key='value',
+            height=100,
+            width=100,
+            color_formatter=temp_icon_color,
+            text_formatter=lambda value: f'\n{value:0.2f} °C'
+        )
+
+        self.temp_outdoor_ts = DashboardTimeSeriesMini(
+            source=self.temp_outdoor_source,
             source_value_key='value',
             source_time_key='time',
             source_color_key='color',
@@ -285,14 +312,24 @@ class TestApp:
 
     def refresh_data(self) -> None:
         period = st.UtcPeriod(st.utctime_now() - self.hist_length, st.utctime_now())
-        temp = self.temp.get_data(period=period)
+        temp = self.temp_indoor.get_data(period=period)
         t, v = get_xy(self.cal, temp)
         new = {'value': [v],
                'time': [t],
                'color': ['grey']
                # 'color': [self.temp_icon.color_selector(v[-1])]
                }
-        self.temp_source.data = new
+        self.temp_indoor_source.data = new
+
+        period = st.UtcPeriod(st.utctime_now() - self.hist_length, st.utctime_now())
+        temp = self.temp_outdoor.get_data(period=period)
+        t, v = get_xy(self.cal, temp)
+        new = {'value': [v],
+               'time': [t],
+               'color': ['grey']
+               # 'color': [self.temp_icon.color_selector(v[-1])]
+               }
+        self.temp_outdoor_source.data = new
 
         co2 = self.co2.get_data(period=period)
         t, v = get_xy(self.cal, co2)
@@ -305,8 +342,10 @@ class TestApp:
 
     def update(self):
         self.refresh_data()
-        self.temp_ts.update()
-        self.temp_icon.update()
+        self.temp_indoor_ts.update()
+        self.temp_indoor_icon.update()
+        self.temp_outdoor_ts.update()
+        self.temp_outdoor_icon.update()
         self.co2_icon.update()
         self.co2_ts.update()
 
@@ -316,8 +355,9 @@ class TestApp:
         doc.title = "Bokeh Dashboard test app."
         # layout = fig
         doc.add_root(column(
-            row(self.temp_icon.layout, self.temp_ts.layout),
-            row(self.co2_icon.layout, self.co2_ts.layout)
+            row(self.temp_indoor_icon.layout, self.temp_indoor_ts.layout),
+            row(self.co2_icon.layout, self.co2_ts.layout),
+            row(self.temp_outdoor_icon.layout, self.temp_outdoor_ts.layout),
         )
         )
 
