@@ -47,11 +47,11 @@ station = 'Eftasåsen'
 module = 'Stua'
 plot_data = [
     {'data': domain.get_measurement(station_name=station, data_type=types.temperature.name, module_name=module),
-     'color': '#E64C3E'},  # red
+     'color': 'red'},
     {'data': domain.get_measurement(station_name=station, data_type=types.co2.name, module_name=module),
-     'color': '#B0CA55'},  # green
+     'color': '#33cc33'},
     {'data': domain.get_measurement(station_name=station, data_type=types.humidity.name, module_name=module),
-     'color': '#0F2933'},  # dark green
+     'color': 'black'},
 ]
 # ('Pressure', 'mbar', point_fx.POINT_INSTANT_VALUE, '#33120F'),  # brown
 # ('Noise', 'db', point_fx.POINT_INSTANT_VALUE, '#E39C30'),  # yellow
@@ -66,7 +66,7 @@ cal = Calendar('Europe/Oslo')
 epsilon = 0.1
 
 now = utctime_now()
-period = UtcPeriod(now - cal.DAY, now)
+period = UtcPeriod(now - cal.DAY*3, now)
 data = client.evaluate(tsv, period)
 
 
@@ -90,6 +90,7 @@ def get_xy(ts: TimeSeries) -> np.array:
             time.append(bokeh_time_from_timestamp(cal, t2))
             values.append(v)
         return np.array(time), np.array(values)
+
 
 try:
     fig = figure(title=f'Demo plot {cal.to_string(now)}', height=400, width=1400, x_axis_type='datetime')
@@ -118,7 +119,8 @@ try:
                 major_tick_line_color=variable['color'],
                 minor_tick_line_color=variable['color'],
                 axis_line_color=variable['color'],
-                axis_label_text_color=variable['color']
+                axis_label_text_color=variable['color'],
+                axis_label_text_font_style='bold',
             ),
             place=axis_side
         )
@@ -130,10 +132,11 @@ try:
         x_ranges.extend([min(x), max(x)])
         fig.line(x=x, y=y,
                  color=variable['color'],
-                 legend=variable['data'].data_type.name,
-                 y_range_name=variable['data'].data_type.name_lower)
-        fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - epsilon * (max(y) - min(y))
-        fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + epsilon * (max(y) - min(y))
+                 legend_label=variable['data'].data_type.name,
+                 y_range_name=variable['data'].data_type.name_lower,
+                 line_width=3)
+        fig.extra_y_ranges[variable['data'].data_type.name_lower].start = np.nanmin(y) - epsilon * (np.nanmax(y) - np.nanmin(y))
+        fig.extra_y_ranges[variable['data'].data_type.name_lower].end = np.nanmax(y) + epsilon * (np.nanmax(y) - np.nanmin(y))
 
     fig.x_range = Range1d(bokeh_time_from_timestamp(cal, period.start), bokeh_time_from_timestamp(cal, period.end))
 
