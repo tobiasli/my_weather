@@ -1,5 +1,8 @@
+import sys
+import os
+import logging
+import socket
 import typing as ty
-import random
 from abc import abstractmethod
 
 import numpy as np
@@ -9,26 +12,12 @@ import shyft.time_series as st
 from bokeh.server.server import Server
 from bokeh.application import Application
 from bokeh.application.handlers.function import FunctionHandler
-from bokeh.plotting import figure, ColumnDataSource
-from bokeh.models import Button, BoxAnnotation, Span, Range1d, Widget, Annotation
+from bokeh.plotting import ColumnDataSource, figure
+from bokeh.models import Button, BoxAnnotation, Widget, Annotation, Range1d
 from bokeh.layouts import column, row
-
-"""This script creates a simple static plot of data from the DtssHost via a DtsClient."""
-import sys
-import os
-from tempfile import NamedTemporaryFile
-import logging
-import socket
-
-from shyft.time_series import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries, \
-    point_interpretation_policy
-from bokeh.plotting import figure, show, output_file
-from bokeh.models import DatetimeTickFormatter, Range1d, LinearAxis
-import numpy as np
 
 from weather.data_sources.netatmo.domain import NetatmoDomain, types
 from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
-from weather.data_sources.heartbeat import create_heartbeat_request
 
 Number = ty.Union[int, float]
 
@@ -40,17 +29,17 @@ logging.basicConfig(
     ])
 
 
-def bokeh_time_from_timestamp(cal: Calendar, timestamp) -> float:
+def bokeh_time_from_timestamp(cal: st.Calendar, timestamp) -> float:
     """Create a localized ms timestamp from a shyft utc timestamp."""
     return float((timestamp + cal.tz_info.base_offset()) * 1000)
 
 
-def get_xy(cal: st.Calendar, ts: TimeSeries) -> np.array:
+def get_xy(cal: st.Calendar, ts: st.TimeSeries) -> np.array:
     """Method for extracting xy-data from TimeSeries"""
-    if ts.point_interpretation() == point_interpretation_policy.POINT_INSTANT_VALUE:
+    if ts.point_interpretation() == st.point_interpretation_policy.POINT_INSTANT_VALUE:
         return [bokeh_time_from_timestamp(cal, t) for t in
                 ts.time_axis.time_points_double[0:-1]], ts.values.to_numpy()
-    elif ts.point_interpretation() == point_interpretation_policy.POINT_AVERAGE_VALUE:
+    elif ts.point_interpretation() == st.point_interpretation_policy.POINT_AVERAGE_VALUE:
         values = []
         time = []
         for v, t1, t2 in zip(ts.values, ts.time_axis.time_points_double[0:-1], ts.time_axis.time_points_double[1:]):
@@ -186,8 +175,8 @@ class DashboardTimeSeriesMini(DashboardBase):
 class TestApp:
 
     def __init__(self) -> None:
-        self.cal = Calendar('Europe/Oslo')
-        self.client = client = DtsClient(f'{os.environ["DTSS_SERVER"]}:{os.environ["DTSS_PORT_NUM"]}')
+        self.cal = st.Calendar('Europe/Oslo')
+        self.client = st.DtsClient(f'{os.environ["DTSS_SERVER"]}:{os.environ["DTSS_PORT_NUM"]}')
         self.hist_length = self.cal.DAY * 2
 
         env_pass = sys.argv[2]
@@ -212,13 +201,13 @@ class TestApp:
 
         station = 'Eftasåsen'
         module = 'Stua'
-        self.temp_indoor = DtssData(client=client,
+        self.temp_indoor = DtssData(client=self.client,
                                     time_series=domain.get_measurement(station_name=station, data_type=types.temperature.name,
                                                                 module_name=module).time_series)
-        self.temp_outdoor = DtssData(client=client,
+        self.temp_outdoor = DtssData(client=self.client,
                                     time_series=domain.get_measurement(station_name=station, data_type=types.temperature.name,
                                                                 module_name='Ute').time_series)
-        self.co2 = DtssData(client=client,
+        self.co2 = DtssData(client=self.client,
                             time_series=domain.get_measurement(station_name=station, data_type=types.co2.name,
                                                                module_name=module).time_series)
 
@@ -367,7 +356,9 @@ class TestApp:
 
 
 apps = {'/test': Application(FunctionHandler(TestApp()))}
-
-server = Server(apps, port=5000, log_level='debug', allow_websocket_origin=['10.0.0.26:5000'])
+port = 5000
+server = Server(apps, port=port, log_level='debug',
+                allow_websocket_origin=[f'{socket.gethostbyname(socket.gethostname())}:{port}'])
+print(f'http://{socket.gethostbyname(socket.gethostname())}:{port}/test')
 server.io_loop.start()
 server.show('/test')

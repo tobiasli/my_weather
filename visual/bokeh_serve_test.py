@@ -1,7 +1,7 @@
 import typing as ty
 import random
 from abc import abstractmethod
-
+import socket
 import numpy as np
 
 import shyft.time_series as st
@@ -23,7 +23,7 @@ class DummyData:
 
     def next(self) -> ty.Dict[str, Number]:
         """Return temperature data."""
-        self.hist.append(self.hist[-1] + random.random()*self.inc - 0.5*self.inc)
+        self.hist.append(self.hist[-1] + random.random() * self.inc - 0.5 * self.inc)
         out = dict(
             current=self.hist[-1],
             time=float(st.utctime_now()) * 1000,
@@ -239,7 +239,11 @@ class TestApp:
 
 
 apps = {'/test': Application(FunctionHandler(TestApp()))}
-
-server = Server(apps, port=5000, log_level='debug', allow_websocket_origin=['10.0.0.26:5000'])
+port = 5000
+server = Server(apps, port=port, log_level='debug',
+                allow_websocket_origin=[f'{socket.gethostbyname(socket.gethostname())}:{port}'])
+print(f'{socket.gethostbyname(socket.gethostname())}:{port}/test')
 server.io_loop.start()
 server.show('/test')
+
+
