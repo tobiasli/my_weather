@@ -297,7 +297,7 @@ class NetatmoRepository(DataCollectionRepository):
             olson_tz_id=meas.station.place['timezone'],
             data_period=UtcPeriod(meas.module.last_setup, meas.module.last_seen),
             created=meas.module.last_setup,
-            modified=meas.module.dashboard_data['time_utc']
+            modified=meas.module.last_seen
         )
 
         # noinspection PyArgumentList

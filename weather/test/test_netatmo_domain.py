@@ -1,13 +1,31 @@
-"""Tests for the netadmo domain classes."""
+"""Tests for the netadmo domain classes.
+
+Assumes that pytest is run with the following arguments:
+-q --password="password" --salt="salt"
+"""
 import pytest
 
 from weather.data_sources.netatmo.domain import NetatmoDomain, NetatmoStation
 from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
 from weather.test.bin.netatmo_test_data import MOCK_STATION_CONFIG
 
+
+def pytest_addoption(parser):
+    parser.addoption("--password", action="store", default="password for decrypting env vars")
+    parser.addoption("--salt", action="store", default="salt for decrypting env vars")
+
+@pytest.fixture
+def password(request):
+    return request.config.getoption("--password")
+
+
+@pytest.fixture
+def salt(request):
+    return request.config.getoption("--salt")
+
 # Get credentials:
 @pytest.fixture()
-def config(pytestconfig):
+def config(password, salt):
     """Return an instance of the NetatmoConfig."""
     try:
         return NetatmoEncryptedEnvVarConfig(
@@ -15,8 +33,8 @@ def config(pytestconfig):
             password_var='NETATMO_PASS',
             client_id_var='NETATMO_ID',
             client_secret_var='NETATMO_SECRET',
-            password=pytestconfig.getoption("password"),
-            salt=pytestconfig.getoption("salt"),
+            password=password,
+            salt=salt,
         )
     except EnvironmentError as e:
         return None

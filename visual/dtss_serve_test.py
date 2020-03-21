@@ -341,6 +341,7 @@ class TestApp:
         self.co2_source.data = new
 
     def update(self):
+        logging.info('start update')
         self.refresh_data()
         self.temp_indoor_ts.update()
         self.temp_indoor_icon.update()
@@ -348,9 +349,10 @@ class TestApp:
         self.temp_outdoor_icon.update()
         self.co2_icon.update()
         self.co2_ts.update()
+        logging.info('stop update')
 
     def __call__(self, doc):
-        doc.add_periodic_callback(self.update, 1000)
+        doc.add_periodic_callback(self.update, 10000)
 
         doc.title = "Bokeh Dashboard test app."
         # layout = fig

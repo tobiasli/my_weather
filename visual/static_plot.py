@@ -24,8 +24,8 @@ logging.basicConfig(
 
 heartbeat = TimeSeries(create_heartbeat_request('static_plot'))
 
-env_pass = sys.argv[1]
-env_salt = sys.argv[2]
+env_pass = sys.argv[2]
+env_salt = sys.argv[3]
 
 config = NetatmoEncryptedEnvVarConfig(
     username_var='NETATMO_USER',

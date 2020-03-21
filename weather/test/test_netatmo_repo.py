@@ -14,9 +14,25 @@ logging.basicConfig(
         logging.StreamHandler()
     ])
 
+
+def pytest_addoption(parser):
+    parser.addoption("--password", action="store", default="password for decrypting env vars")
+    parser.addoption("--salt", action="store", default="salt for decrypting env vars")
+
+
+@pytest.fixture
+def password(request):
+    return request.config.getoption("--password")
+
+
+@pytest.fixture
+def salt(request):
+    return request.config.getoption("--salt")
+
+
 # Get credentials:
 @pytest.fixture()
-def config(pytestconfig):
+def config(password, salt):
     """Return an instance of the NetatmoConfig."""
     try:
         return NetatmoEncryptedEnvVarConfig(
@@ -24,11 +40,12 @@ def config(pytestconfig):
             password_var='NETATMO_PASS',
             client_id_var='NETATMO_ID',
             client_secret_var='NETATMO_SECRET',
-            password=pytestconfig.getoption("password"),
-            salt=pytestconfig.getoption("salt"),
+            password=password,
+            salt=salt,
         )
     except EnvironmentError as e:
         return None
+
 
 @pytest.fixture
 def net(config):
@@ -75,14 +92,18 @@ def net_no_login_w_call_limits(config):
 def test_construction(net):
     if net is None:
         pytest.skip(f'Netatmo is not properly configured.')
-    assert net.domain
+    device_data, domain = net.create_netatmo_connection()
+    assert device_data
+    assert domain
 
 
 def test__get_measurements_block(net, domain):
     if domain is None:
         pytest.skip(f'Netatmo is not properly configured.')
+    device_data = net.create_netatmo_connection()[0]
     measurement = domain.get_measurement(station_name='Eftasåsen', module_name='Stua', data_type='Temperature')
-    tsvec = net._get_measurements_block(device_id=measurement.station.id,
+    tsvec = net._get_measurements_block(device_data=device_data,
+                                        device_id=measurement.station.id,
                                         module_id=measurement.module.id,
                                         measurements=[measurement.data_type.name])
 
@@ -95,7 +116,9 @@ def test_get_measurements(net, domain):
     # This method uses a period longer than 1024 values, utilizing a rate limiter to not trip Netatmo api limits.
     period = UtcPeriod(Calendar().time(2019, 3, 1), Calendar().time(2019, 3, 8))
     measurement = domain.get_measurement(station_name='Eftasåsen', module_name='Stua', data_type=types.temperature.name)
-    tsvec = net.get_measurements(station_id=measurement.station.id,
+    device_data = net.create_netatmo_connection()[0]
+    tsvec = net.get_measurements(device_data=device_data,
+                                 station_id=measurement.station.id,
                                  module_id=measurement.module.id,
                                  measurements=[measurement.data_type.name, types.humidity.name],
                                  utc_period=period)
