@@ -3,11 +3,11 @@ import sys
 import os
 from tempfile import NamedTemporaryFile
 import logging
-import socket
 
 from shyft.time_series import DtsClient, UtcPeriod, Calendar, TsVector, utctime_now, TimeSeries
 from bokeh.plotting import figure, show, output_file
 from bokeh.models import DatetimeTickFormatter, Range1d, LinearAxis
+import numpy as np
 
 from visual.utils import bokeh_time_from_timestamp, get_xy
 from weather.data_sources.netatmo.domain import NetatmoDomain, types
@@ -65,7 +65,7 @@ cal = Calendar('Europe/Oslo')
 epsilon = 0.1
 
 now = utctime_now()
-period = UtcPeriod(now - cal.DAY, now)
+period = UtcPeriod(now - cal.DAY*3, now)
 data = client.evaluate(tsv, period)
 
 try:
@@ -95,7 +95,8 @@ try:
                 major_tick_line_color=variable['color'],
                 minor_tick_line_color=variable['color'],
                 axis_line_color=variable['color'],
-                axis_label_text_color=variable['color']
+                axis_label_text_color=variable['color'],
+                axis_label_text_font_style='bold',
             ),
             place=axis_side
         )
@@ -107,10 +108,11 @@ try:
         x_ranges.extend([min(x), max(x)])
         fig.line(x=x, y=y,
                  color=variable['color'],
-                 legend=variable['data'].data_type.name,
-                 y_range_name=variable['data'].data_type.name_lower)
-        fig.extra_y_ranges[variable['data'].data_type.name_lower].start = min(y) - epsilon * (max(y) - min(y))
-        fig.extra_y_ranges[variable['data'].data_type.name_lower].end = max(y) + epsilon * (max(y) - min(y))
+                 legend_label=variable['data'].data_type.name,
+                 y_range_name=variable['data'].data_type.name_lower,
+                 line_width=3)
+        fig.extra_y_ranges[variable['data'].data_type.name_lower].start = np.nanmin(y) - epsilon * (np.nanmax(y) - np.nanmin(y))
+        fig.extra_y_ranges[variable['data'].data_type.name_lower].end = np.nanmax(y) + epsilon * (np.nanmax(y) - np.nanmin(y))
 
     fig.x_range = Range1d(bokeh_time_from_timestamp(cal, period.start), bokeh_time_from_timestamp(cal, period.end))
 
