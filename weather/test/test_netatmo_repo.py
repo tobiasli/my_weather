@@ -14,6 +14,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ])
 
+
 # Get credentials:
 @pytest.fixture()
 def config(pytestconfig):
@@ -29,6 +30,7 @@ def config(pytestconfig):
         )
     except EnvironmentError as e:
         return None
+
 
 @pytest.fixture
 def net(config):
@@ -72,19 +74,16 @@ def net_no_login_w_call_limits(config):
     return net
 
 
-def test_construction(net):
-    if net is None:
-        pytest.skip(f'Netatmo is not properly configured.')
-    assert net.domain
-
-
 def test__get_measurements_block(net, domain):
     if domain is None:
         pytest.skip(f'Netatmo is not properly configured.')
     measurement = domain.get_measurement(station_name='Eftasåsen', module_name='Stua', data_type='Temperature')
-    tsvec = net._get_measurements_block(device_id=measurement.station.id,
-                                        module_id=measurement.module.id,
-                                        measurements=[measurement.data_type.name])
+    device_data, domain = net.create_netatmo_connection()
+    tsvec = net._get_measurements_block(
+        device_data=device_data,
+        device_id=measurement.station.id,
+        module_id=measurement.module.id,
+        measurements=[measurement.data_type.name])
 
     assert tsvec[0].values.to_numpy().all()
 
@@ -95,7 +94,9 @@ def test_get_measurements(net, domain):
     # This method uses a period longer than 1024 values, utilizing a rate limiter to not trip Netatmo api limits.
     period = UtcPeriod(Calendar().time(2019, 3, 1), Calendar().time(2019, 3, 8))
     measurement = domain.get_measurement(station_name='Eftasåsen', module_name='Stua', data_type=types.temperature.name)
-    tsvec = net.get_measurements(station_id=measurement.station.id,
+    device_data, domain = net.create_netatmo_connection()
+    tsvec = net.get_measurements(device_data=device_data,
+                                 station_id=measurement.station.id,
                                  module_id=measurement.module.id,
                                  measurements=[measurement.data_type.name, types.humidity.name],
                                  utc_period=period)

@@ -2,7 +2,6 @@
 import os
 import sys
 import logging
-from tempfile import NamedTemporaryFile
 import socket
 
 import shyft.time_series as st
@@ -10,13 +9,11 @@ import shyft.time_series as st
 from bokeh.server.server import Server
 from bokeh.application import Application
 from bokeh.application.handlers.function import FunctionHandler
-from bokeh.plotting import figure, ColumnDataSource, show, output_file
-from bokeh.models import Range1d
+from bokeh.plotting import figure, ColumnDataSource
 
 from visual.utils import bokeh_time_from_timestamp, get_xy
-from weather.data_sources.netatmo.domain import NetatmoDomain, types
+from weather.data_sources.netatmo.domain import NetatmoDomain
 from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
-from weather.data_sources.heartbeat import create_heartbeat_request
 
 logging.basicConfig(
     level=logging.INFO,
