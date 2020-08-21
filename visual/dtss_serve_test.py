@@ -13,10 +13,10 @@ from bokeh.server.server import Server
 from bokeh.application import Application
 from bokeh.application.handlers.function import FunctionHandler
 from bokeh.plotting import ColumnDataSource, figure
-from bokeh.models import Button, BoxAnnotation, Widget, Annotation, Range1d
+from bokeh.models import Button, BoxAnnotation, Widget, Annotation, Range1d, LayoutDOM, Paragraph
 from bokeh.layouts import column, row
 
-from weather.data_sources.netatmo.domain import NetatmoDomain, types
+from weather.data_sources.netatmo.domain import NetatmoDomain, types, NetatmoMeasurement
 from weather.data_sources.netatmo.repository import NetatmoEncryptedEnvVarConfig
 
 Number = ty.Union[int, float]
@@ -174,7 +174,8 @@ class DashboardTimeSeriesMini(DashboardBase):
 
 class CompactDataWidget:
             def __init__(self,
-                         dtss_data: DtssData,
+                         dtss: st.DtsClient,
+                         measurement: NetatmoMeasurement,
                          height: int,
                          width: int,
                          color_formatter: ty.Callable[[Number], str],
@@ -184,7 +185,8 @@ class CompactDataWidget:
                          ) -> None:
                 self.source = ColumnDataSource({'time': [], 'value': [], 'color': []})
 
-                self.dtss_data = dtss_data
+                self.measurement = measurement
+                self.dtss_data = DtssData(dtss, measurement.time_series)
 
                 self.icon = DashboardIcon(
                     source=self.source,
@@ -206,6 +208,8 @@ class CompactDataWidget:
                     minimum_range=minimum_range
                 )
 
+                self.text = Paragraph(text=self.measurement.module.name.upper(), height=height, width=width)
+
             def refresh_data(self, cal: st.Calendar, hist_length: st.time) -> None:
                 """Put new data into datasource for icon and plot."""
                 period = st.UtcPeriod(st.utctime_now() - hist_length, st.utctime_now())
@@ -223,6 +227,9 @@ class CompactDataWidget:
                 self.icon.update()
                 self.time_series.update()
 
+            @property
+            def layout(self) -> LayoutDOM:
+                return row(self.text, self.icon.layout, self.time_series.layout)
 
 class TestApp:
 
@@ -270,10 +277,10 @@ class TestApp:
 
         self.widgets = [
             CompactDataWidget(
-                dtss_data=DtssData(client=self.client,
-                                   time_series=domain.get_measurement(station_name=station,
+                dtss = self.client,
+                measurement = domain.get_measurement(station_name=station,
                                                                       data_type=types.temperature.name,
-                                                                      module_name=module).time_series),
+                                                                      module_name=module),
                 height=100,
                 width=100,
                 color_formatter=temp_icon_color,
@@ -285,10 +292,11 @@ class TestApp:
                 minimum_range=[-5, 5]
             ),
             CompactDataWidget(
-                dtss_data=DtssData(client=self.client,
-                                   time_series=domain.get_measurement(station_name=station,
+                dtss = self.client,
+
+                measurement=domain.get_measurement(station_name=station,
                                                                       data_type=types.temperature.name,
-                                                                      module_name='Ute').time_series),
+                                                                      module_name='Ute'),
                 height=100,
                 width=100,
                 color_formatter=temp_icon_color,
@@ -300,9 +308,9 @@ class TestApp:
                 minimum_range=[-5, 5]
             ),
             CompactDataWidget(
-                dtss_data=DtssData(client=self.client,
-                                   time_series=domain.get_measurement(station_name=station, data_type=types.co2.name,
-                                                                      module_name=module).time_series),
+                dtss=self.client,
+                measurement=domain.get_measurement(station_name=station, data_type=types.co2.name,
+                                                                      module_name=module),
                 height=100,
                 width=100,
                 color_formatter=co2_icon_color,
@@ -327,7 +335,7 @@ class TestApp:
         doc.add_periodic_callback(self.update, 10000)
 
         doc.title = "Bokeh Dashboard test app."
-        doc.add_root(column(*[row(w.icon.layout, w.time_series.layout) for w in self.widgets]))
+        doc.add_root(column(*[w.layout for w in self.widgets]))
 
         return doc
 
