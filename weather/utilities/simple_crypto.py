@@ -22,7 +22,7 @@ class SimpleCryptoEngine:
             salt: An additional, arbitrary string that should be specific for this specific password for this
                 specific application (in the case that the password is not unique for this application).
         """
-        self.engine = Fernet(self.generate_key(password, salt))
+        self._engine = Fernet(self.generate_key(password, salt))
 
     @staticmethod
     def generate_key(password: str, salt: str) -> bytes:
@@ -39,7 +39,7 @@ class SimpleCryptoEngine:
         return key
 
     def encrypt(self, string: str) -> str:
-        return self.engine.encrypt(string.encode()).decode()
+        return self._engine.encrypt(string.encode()).decode()
 
     def decrypt(self, string: str) -> str:
-        return self.engine.decrypt(string.encode()).decode()
+        return self._engine.decrypt(string.encode()).decode()

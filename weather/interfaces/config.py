@@ -5,6 +5,7 @@ import typing as ty
 
 from abc import abstractmethod
 from collections.abc import Mapping
+from cryptography.fernet import InvalidToken
 
 import tregex
 
@@ -13,6 +14,11 @@ from weather.utilities.simple_crypto import SimpleCryptoEngine
 
 class RepositoryConfigError(Exception):
     """Errors raised by the repo config."""
+    pass
+
+
+class EncryptedEnvVarError(Exception):
+    """Errors raised by the EncryptedEnvVarConfig"""
     pass
 
 
@@ -67,4 +73,9 @@ class EncryptedEnvVarConfig(EnvVarConfig):
 
     def get_env_var(self, var: str) -> str:
         """Get the value from an encrypted, named environment variable."""
-        return self.engine.decrypt(os.environ.get(var, None))
+        if var == 'NETATMO_USER':
+            abs(1)
+        try:
+            return self.engine.decrypt(os.environ.get(var, None))
+        except InvalidToken:
+            raise EncryptedEnvVarError(f'Cannot decrypt environment variable {var} with key {os.environ.get(var, None)}')

@@ -26,6 +26,8 @@ heartbeat = TimeSeries(create_heartbeat_request('static_plot'))
 env_pass = sys.argv[1]
 env_salt = sys.argv[2]
 
+print(f'salt: {env_salt}\npass: {env_pass}')
+
 config = NetatmoEncryptedEnvVarConfig(
     username_var='NETATMO_USER',
     password_var='NETATMO_PASS',
