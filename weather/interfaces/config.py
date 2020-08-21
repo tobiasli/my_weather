@@ -73,8 +73,6 @@ class EncryptedEnvVarConfig(EnvVarConfig):
 
     def get_env_var(self, var: str) -> str:
         """Get the value from an encrypted, named environment variable."""
-        if var == 'NETATMO_USER':
-            abs(1)
         try:
             return self.engine.decrypt(os.environ.get(var, None))
         except InvalidToken:

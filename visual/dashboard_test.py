@@ -96,7 +96,7 @@ server = Server(apps,
                 # address=socket.gethostbyname(socket.gethostname()),
                 # host=f'localhost:{port}',
                 allow_websocket_origin=[
-                    # f'localhost:{port}',  # Localhost by name
+                    f'localhost:{port}',  # Localhost by name
                     f'{socket.gethostbyname(socket.gethostname())}:{port}'  # Localhost by IP
                 ])
 server.io_loop.start()

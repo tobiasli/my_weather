@@ -135,11 +135,11 @@ class DashboardTimeSeriesMini(DashboardBase):
             **kwargs
         )
         self.fig.multi_line(source=self.source,
-                      xs=self.source_time_key,
-                      ys=self.source_value_key,
-                      color=self.source_color_key,
-                      # size=2,
-                      )
+                            xs=self.source_time_key,
+                            ys=self.source_value_key,
+                            color=self.source_color_key,
+                            # size=2,
+                            )
         for annotation in self.additional_annotations:
             self.fig.add_layout(annotation)
         if self.minimum_range:
@@ -158,8 +158,8 @@ class DashboardTimeSeriesMini(DashboardBase):
         minimum = np.nanmin(self.source.data[self.source_value_key])
 
         if self.minimum_range:
-            upper = np.nanmax([np.ceil(maximum + 0.2 * abs(maximum-minimum)), self.minimum_range[1]])
-            lower = np.nanmin([np.floor(minimum - 0.2 * abs(maximum-minimum)), self.minimum_range[0]])
+            upper = np.nanmax([np.ceil(maximum + 0.2 * abs(maximum - minimum)), self.minimum_range[1]])
+            lower = np.nanmin([np.floor(minimum - 0.2 * abs(maximum - minimum)), self.minimum_range[0]])
 
             self.fig.y_range.start = lower
             self.fig.y_range.end = upper
@@ -172,6 +172,58 @@ class DashboardTimeSeriesMini(DashboardBase):
         return self.fig
 
 
+class CompactDataWidget:
+            def __init__(self,
+                         dtss_data: DtssData,
+                         height: int,
+                         width: int,
+                         color_formatter: ty.Callable[[Number], str],
+                         text_formatter: ty.Callable[[Number], str],
+                         additional_annotations: ty.Sequence[BoxAnnotation],
+                         minimum_range: ty.Sequence[Number]
+                         ) -> None:
+                self.source = ColumnDataSource({'time': [], 'value': [], 'color': []})
+
+                self.dtss_data = dtss_data
+
+                self.icon = DashboardIcon(
+                    source=self.source,
+                    source_value_key='value',
+                    height=height,
+                    width=width,
+                    color_formatter=color_formatter,
+                    text_formatter=text_formatter
+                )
+
+                self.time_series = DashboardTimeSeriesMini(
+                    source=self.source,
+                    source_value_key='value',
+                    source_time_key='time',
+                    source_color_key='color',
+                    height=int(height * 1.25),
+                    width=int(width * 2),
+                    additional_annotations=additional_annotations,
+                    minimum_range=minimum_range
+                )
+
+            def refresh_data(self, cal: st.Calendar, hist_length: st.time) -> None:
+                """Put new data into datasource for icon and plot."""
+                period = st.UtcPeriod(st.utctime_now() - hist_length, st.utctime_now())
+                temp = self.dtss_data.get_data(period=period)
+                t, v = get_xy(cal, temp)
+                new = {'value': [v],
+                       'time': [t],
+                       'color': ['grey']
+                       # 'color': [self.icon.color_selector(v[-1])]
+                       }
+                self.source.data = new
+
+            def update(self) -> None:
+                """Plot and icon according to data in datasource."""
+                self.icon.update()
+                self.time_series.update()
+
+
 class TestApp:
 
     def __init__(self) -> None:
@@ -179,8 +231,8 @@ class TestApp:
         self.client = st.DtsClient(f'{os.environ["DTSS_SERVER"]}:{os.environ["DTSS_PORT_NUM"]}')
         self.hist_length = self.cal.DAY * 2
 
-        env_pass = sys.argv[2]
-        env_salt = sys.argv[3]
+        env_pass = sys.argv[1]
+        env_salt = sys.argv[2]
 
         config = NetatmoEncryptedEnvVarConfig(
             username_var='NETATMO_USER',
@@ -201,71 +253,12 @@ class TestApp:
 
         station = 'Eftasåsen'
         module = 'Stua'
-        self.temp_indoor = DtssData(client=self.client,
-                                    time_series=domain.get_measurement(station_name=station, data_type=types.temperature.name,
-                                                                module_name=module).time_series)
-        self.temp_outdoor = DtssData(client=self.client,
-                                    time_series=domain.get_measurement(station_name=station, data_type=types.temperature.name,
-                                                                module_name='Ute').time_series)
-        self.co2 = DtssData(client=self.client,
-                            time_series=domain.get_measurement(station_name=station, data_type=types.co2.name,
-                                                               module_name=module).time_series)
-
-        self.temp_indoor_source = ColumnDataSource({'time': [], 'value': [], 'color': []})
-        self.temp_outdoor_source = ColumnDataSource({'time': [], 'value': [], 'color': []})
-        self.co2_source = ColumnDataSource({'time': [], 'value': [], 'color': []})
 
         def temp_icon_color(value: Number) -> str:
             if value > 0:
                 return 'red'
             else:
                 return 'blue'
-
-        self.temp_indoor_icon = DashboardIcon(
-            source=self.temp_indoor_source,
-            source_value_key='value',
-            height=100,
-            width=100,
-            color_formatter=temp_icon_color,
-            text_formatter=lambda value: f'\n{value:0.2f} °C'
-        )
-
-        self.temp_indoor_ts = DashboardTimeSeriesMini(
-            source=self.temp_indoor_source,
-            source_value_key='value',
-            source_time_key='time',
-            source_color_key='color',
-            height=125,
-            width=200,
-            additional_annotations=[
-                BoxAnnotation(bottom=0, fill_alpha=0.1, fill_color='red'),
-                BoxAnnotation(top=0, fill_alpha=0.1, fill_color='blue'),
-            ],
-            minimum_range=[-5, 5]
-        )
-
-        self.temp_outdoor_icon = DashboardIcon(
-            source=self.temp_outdoor_source,
-            source_value_key='value',
-            height=100,
-            width=100,
-            color_formatter=temp_icon_color,
-            text_formatter=lambda value: f'\n{value:0.2f} °C'
-        )
-
-        self.temp_outdoor_ts = DashboardTimeSeriesMini(
-            source=self.temp_outdoor_source,
-            source_value_key='value',
-            source_time_key='time',
-            source_color_key='color',
-            height=125,
-            width=200,
-            additional_annotations=[
-                BoxAnnotation(bottom=0, fill_alpha=0.1, fill_color='red'),
-                BoxAnnotation(top=0, fill_alpha=0.1, fill_color='blue'),
-            ],
-            minimum_range=[-5, 5]
-        )
 
         def co2_icon_color(value: Number) -> str:
             if value > 1000:
@@ -275,82 +268,66 @@ class TestApp:
             else:
                 return 'green'
 
-        self.co2_icon = DashboardIcon(
-            source=self.co2_source,
-            source_value_key='value',
-            height=100,
-            width=100,
-            color_formatter=co2_icon_color,
-            text_formatter=lambda value: f'{value:0.2f} ppm'
-        )
-
-        self.co2_ts = DashboardTimeSeriesMini(
-            source=self.co2_source,
-            source_value_key='value',
-            source_time_key='time',
-            source_color_key='color',
-            height=125,
-            width=200,
-            additional_annotations=[
-                BoxAnnotation(bottom=1000, fill_alpha=0.1, fill_color='red'),
-                BoxAnnotation(bottom=600, top=1000, fill_alpha=0.1, fill_color='orange'),
-                BoxAnnotation(top=600, fill_alpha=0.1, fill_color='green'),
-            ],
-            minimum_range=[300, 700]
-        )
-
-    def refresh_data(self) -> None:
-        period = st.UtcPeriod(st.utctime_now() - self.hist_length, st.utctime_now())
-        temp = self.temp_indoor.get_data(period=period)
-        t, v = get_xy(self.cal, temp)
-        new = {'value': [v],
-               'time': [t],
-               'color': ['grey']
-               # 'color': [self.temp_icon.color_selector(v[-1])]
-               }
-        self.temp_indoor_source.data = new
-
-        period = st.UtcPeriod(st.utctime_now() - self.hist_length, st.utctime_now())
-        temp = self.temp_outdoor.get_data(period=period)
-        t, v = get_xy(self.cal, temp)
-        new = {'value': [v],
-               'time': [t],
-               'color': ['grey']
-               # 'color': [self.temp_icon.color_selector(v[-1])]
-               }
-        self.temp_outdoor_source.data = new
-
-        co2 = self.co2.get_data(period=period)
-        t, v = get_xy(self.cal, co2)
-        new = {'value': [v],
-               'time': [t],
-               'color': ['grey']
-               # 'color': [self.co2_icon.color_selector(v[-1])]
-               }
-        self.co2_source.data = new
+        self.widgets = [
+            CompactDataWidget(
+                dtss_data=DtssData(client=self.client,
+                                   time_series=domain.get_measurement(station_name=station,
+                                                                      data_type=types.temperature.name,
+                                                                      module_name=module).time_series),
+                height=100,
+                width=100,
+                color_formatter=temp_icon_color,
+                text_formatter=lambda value: f'\n{value:0.2f} °C',
+                additional_annotations=[
+                    BoxAnnotation(bottom=0, fill_alpha=0.1, fill_color='red'),
+                    BoxAnnotation(top=0, fill_alpha=0.1, fill_color='blue'),
+                ],
+                minimum_range=[-5, 5]
+            ),
+            CompactDataWidget(
+                dtss_data=DtssData(client=self.client,
+                                   time_series=domain.get_measurement(station_name=station,
+                                                                      data_type=types.temperature.name,
+                                                                      module_name='Ute').time_series),
+                height=100,
+                width=100,
+                color_formatter=temp_icon_color,
+                text_formatter=lambda value: f'\n{value:0.2f} °C',
+                additional_annotations=[
+                    BoxAnnotation(bottom=0, fill_alpha=0.1, fill_color='red'),
+                    BoxAnnotation(top=0, fill_alpha=0.1, fill_color='blue'),
+                ],
+                minimum_range=[-5, 5]
+            ),
+            CompactDataWidget(
+                dtss_data=DtssData(client=self.client,
+                                   time_series=domain.get_measurement(station_name=station, data_type=types.co2.name,
+                                                                      module_name=module).time_series),
+                height=100,
+                width=100,
+                color_formatter=co2_icon_color,
+                text_formatter=lambda value: f'{value:0.2f} ppm',
+                additional_annotations=[
+                    BoxAnnotation(bottom=1000, fill_alpha=0.1, fill_color='red'),
+                    BoxAnnotation(bottom=600, top=1000, fill_alpha=0.1, fill_color='orange'),
+                    BoxAnnotation(top=600, fill_alpha=0.1, fill_color='green'),
+                ],
+                minimum_range=[300, 700]
+            )
+        ]
 
     def update(self):
         logging.info('start update')
-        self.refresh_data()
-        self.temp_indoor_ts.update()
-        self.temp_indoor_icon.update()
-        self.temp_outdoor_ts.update()
-        self.temp_outdoor_icon.update()
-        self.co2_icon.update()
-        self.co2_ts.update()
+        for widget in self.widgets:
+            widget.refresh_data(self.cal, self.hist_length)
+            widget.update()
         logging.info('stop update')
 
     def __call__(self, doc):
         doc.add_periodic_callback(self.update, 10000)
 
         doc.title = "Bokeh Dashboard test app."
-        # layout = fig
-        doc.add_root(column(
-            row(self.temp_indoor_icon.layout, self.temp_indoor_ts.layout),
-            row(self.co2_icon.layout, self.co2_ts.layout),
-            row(self.temp_outdoor_icon.layout, self.temp_outdoor_ts.layout),
-        )
-        )
+        doc.add_root(column(*[row(w.icon.layout, w.time_series.layout) for w in self.widgets]))
 
         return doc
 
