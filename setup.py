@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(name='weather-tobiasli',
-                 version='1.1.2',
+                 version='1.1.3',
                  description='Tools for managing weather data using shyft.',
                  author='Tobias Litherland',
                  author_email='tobiaslland@gmail.com',
@@ -18,5 +18,5 @@ setuptools.setup(name='weather-tobiasli',
                      "License :: OSI Approved :: MIT License",
                      "Operating System :: OS Independent",
                  ],
-                 install_requires=['tregex-tobiasli', 'lnetatmo', 'pytest', 'numpy', 'cryptography']
+                 install_requires=['tregex-tobiasli', 'lnetatmo', 'pytest', 'numpy', 'cryptography', 'rdp']
                  )
