@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(name='weather-tobiasli',
-                 version='1.1.4',
+                 version='1.1.5',
                  description='Tools for managing weather data using shyft.',
                  author='Tobias Litherland',
                  author_email='tobiaslland@gmail.com',
